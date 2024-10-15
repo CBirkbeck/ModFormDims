@@ -2,6 +2,7 @@ import Mathlib.Analysis.Complex.RemovableSingularity
 import Mathlib.Analysis.Complex.UpperHalfPlane.Basic
 import Mathlib.Analysis.Complex.UpperHalfPlane.Topology
 import Mathlib.NumberTheory.ModularForms.Basic
+import Mathlib.NumberTheory.ModularForms.Identities
 import Mathlib.Analysis.Calculus.InverseFunctionTheorem.Deriv
 import ModFormDims.holoext
 
@@ -406,24 +407,24 @@ theorem tendsto_at_I_inf (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ))
     Tendsto f atIInf' (𝓝 <| cuspFcn h f 0) := by
   suffices Tendsto (cuspFcn h f) (𝓝[≠] 0) (𝓝 <| cuspFcn h f 0)
     by
-    have t2 : f = cuspFcn h f ∘ Q h := by ext1; apply eq_cuspFcn h f hf
+    have t2 : f = cuspFcn h f ∘ Q h := by ext1; apply eq_cuspFcn h f _ hf
     conv =>
       congr
       rw [t2]
     apply Tendsto.comp; exact this
     apply tendsto_nhdsWithin_of_tendsto_nhds_of_eventually_within
-    exact q_tendsto h; apply eventually_of_forall; intro q; apply exp_ne_zero
-  exact tendsto_nhdsWithin_of_tendsto_nhds (F_diff_at_zero _ _ hf h_bd h_hol).continuousAt.tendsto
+    exact q_tendsto h; apply Eventually.of_forall; intro q; apply exp_ne_zero
+  exact tendsto_nhdsWithin_of_tendsto_nhds (F_diff_at_zero _ _ h_bd h_hol hf).continuousAt.tendsto
 
 theorem cuspFcn_zero_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ)) : cuspFcn h f 0 = 0 :=
   by
   rw [cuspFcn, Function.update]; split_ifs; swap; tauto
   suffices Tendsto (cuspFcn0 h f) (𝓝[{0}ᶜ] 0) (𝓝 (0 : ℂ)) by exact Tendsto.limUnder_eq this
-  have :IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn h f) 1 :=
+  have :IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn h f) 1  (F := ℂ):=
     by
     refine' IsLittleO.congr' (h_bd.comp_tendsto <| z_tendsto h) _ (by rfl)
     apply eventually_nhdsWithin_of_forall; intro q hq; rw [cuspFcn_eq_of_nonzero _ _ _ hq]; rfl
-  have : IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn0 h f) 1 :=
+  have : IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn0 h f) 1  (F:= ℂ):=
     by
     refine' IsLittleO.congr' this _ (by rfl); apply eventually_nhdsWithin_of_forall
     apply cuspFcn_eq_of_nonzero
@@ -432,11 +433,10 @@ theorem cuspFcn_zero_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ
 /-- Main theorem of this file: if `f` is periodic, holomorphic near `I∞`, and tends to zero
 at `I∞`, then in fact it tends to zero exponentially fast. -/
 theorem exp_decay_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ))
-    (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) :
-    IsBigO atIInf' f fun z : ℂ => Real.exp (-2 * π * im z / h) :=
-  by
+    (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) (hf : ∀ w : ℂ, f (w + h) = f w) :
+    IsBigO atIInf' f fun z : ℂ => Real.exp (-2 * π * im z / h) := by
   have F0 := cuspFcn_zero_of_zero_at_inf ?_ _ h_bd
-  have : f = fun z : ℂ => (cuspFcn h f) (Q h z) := by ext1 z; apply eq_cuspFcn _ _ hf
+  have : f = fun z : ℂ => (cuspFcn h f) (Q h z) := by ext1 z; apply eq_cuspFcn _ _ _ hf
   --rw [this]
   --simp
   --rw [← abs_q_eq h, ← norm_eq_abs]
@@ -444,20 +444,19 @@ theorem exp_decay_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ))
   simp_rw [← abs_q_eq h, ← norm_eq_abs]
   apply IsBigO.norm_right
   apply (bound_holo_fcn (cuspFcn h f) ?_ ?_).comp_tendsto (q_tendsto h)
-  apply  (F_diff_at_zero _ _ hf h_bd.isBigO h_hol)
+  apply  (F_diff_at_zero _ _ h_bd.isBigO h_hol hf)
   convert F0
+
 
 end HoloAtInfC
 
 /-! Now we prove corresponding results about modular forms. -/
 
 
-local notation "ℍ" => UpperHalfPlane
-
 local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
 
 instance : VAdd ℝ ℍ := by
-  constructor; intro h z; refine' ⟨z + h, _⟩; dsimp at *
+  constructor; intro h z; refine' ⟨z + h, _⟩;
   suffices 0 < Complex.im (z + h) by exact this
   rw [Complex.add_im, Complex.ofReal_im, add_zero]; exact z.2
 
@@ -520,7 +519,7 @@ theorem modform_periodic (f : ModularForm ⊤ k) (w : ℂ) :
   · rw [extendByZero_eq_of_mem f w hw]
     have : 0 < im (w + 1) := by rw [add_im, one_im, add_zero]; exact hw
     rw [extendByZero_eq_of_mem f _ this]
-    have t := EisensteinSeries.mod_form_periodic k f ⟨w, hw⟩ 1
+    have t := SlashInvariantForm.vAdd_width_periodic 1 k 1 f ⟨w, hw⟩
     rw [UpperHalfPlane.modular_T_zpow_smul] at t
     convert t
     simp
