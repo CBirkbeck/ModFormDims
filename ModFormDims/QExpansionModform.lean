@@ -61,38 +61,46 @@ end UpperHalfPlane
 
 local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
 
+instance (k : ℤ) (Γ : Subgroup SL(2, ℤ)) : ModularFormClass (CuspForm Γ k) Γ k where
+  holo f := f.holo'
+  bdd_at_infty f A := (f.zero_at_infty' A).boundedAtFilter
+
 section ModformEquivs
 
 variable {k : ℤ}
 
-theorem modform_bounded_atIInf' {Γ : Subgroup SL(2, ℤ)} (f : ModularForm Γ k) :
+theorem modform_bounded_atIInf'
+    {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] (f : F) :
     BoundedAtFilter atIInf' (f ∘ ofComplex) := by
   simpa only [SlashAction.slash_one, ModularForm.toSlashInvariantForm_coe]
-    using IsBigO.comp_tendsto (f.bdd_at_infty' 1) tendsto_atIInf'_ofComplex
+    using IsBigO.comp_tendsto (ModularFormClass.bdd_at_infty f 1) tendsto_atIInf'_ofComplex
 
 theorem cuspform_zero_atIInf' {Γ : Subgroup SL(2, ℤ)} (f : CuspForm Γ k) :
     ZeroAtFilter atIInf' (f ∘ ofComplex) := by
   simpa only [SlashAction.slash_one, CuspForm.toSlashInvariantForm_coe]
     using (f.zero_at_infty' 1).comp tendsto_atIInf'_ofComplex
 
-theorem modform_periodic (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (w : ℂ) :
+theorem modform_periodic {F : Type*} [FunLike F ℍ ℂ]
+    [ModularFormClass F (CongruenceSubgroup.Gamma 1) k] (f : F) (w : ℂ) :
     (f ∘ ofComplex) (w + 1) = (f ∘ ofComplex) w := by
   by_cases hw : 0 < im w
   · have : 0 < im (w + 1) := by simp only [add_im, one_im, add_zero, hw]
     simp only [Function.comp_apply, ofComplex_apply' hw, ofComplex_apply' this]
-    convert SlashInvariantForm.vAdd_width_periodic 1 k 1 f.1 ⟨w, hw⟩ using 2
+    convert SlashInvariantForm.vAdd_width_periodic 1 k 1 f ⟨w, hw⟩ using 2
     simp only [Nat.cast_one, Int.cast_one, mul_one, UpperHalfPlane.ext_iff, coe_mk_subtype,
       coe_vadd, ofReal_one, add_comm]
   · have : ¬0 < im (w + 1) := by simp only [add_im, one_im, add_zero, hw, not_false_eq_true]
     simp only [Function.comp_apply, ofComplex_apply_of_im_nonpos (not_lt.mp hw),
       ofComplex_apply_of_im_nonpos (not_lt.mp this)]
 
-theorem modform_hol {Γ : Subgroup SL(2, ℤ)} (f : ModularForm Γ k) (z : ℂ) (hz : 0 < im z) :
+theorem modform_hol {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k]
+    (f : F) (z : ℂ) (hz : 0 < im z) :
     DifferentiableAt ℂ (f ∘ ofComplex) z := by
   rw [← mdifferentiableAt_iff_differentiableAt]
-  exact (f.holo' _).comp z (mdifferentiableAt_ofComplex z hz)
+  exact (ModularFormClass.holo f _).comp z (mdifferentiableAt_ofComplex z hz)
 
-theorem modform_hol_infty {Γ : Subgroup SL(2, ℤ)} (f : ModularForm Γ k) :
+theorem modform_hol_infty
+    {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] (f : F) :
     ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ (f ∘ ofComplex) z :=
   eventually_of_mem im_pos_mem_atIInf' (modform_hol f)
 
@@ -127,34 +135,16 @@ theorem cusp_fcn_diff (f : ModularForm (CongruenceSubgroup.Gamma 1) k)
   · exact QZ_eq_id one_ne_zero q hq' ▸ (cuspFcn_diff_at _ one_ne_zero _
       (modform_hol f _ <| z_in_H hq hq') (modform_periodic f))
 
-theorem cusp_fcn_vanish (f : CuspForm ⊤ k) : cuspFcnH f 0 = 0 :=
+theorem cusp_fcn_vanish (f : CuspForm (CongruenceSubgroup.Gamma 1) k) : cuspFcnH f 0 = 0 :=
   cuspFcn_zero_of_zero_at_inf zero_lt_one (cuspform_zero_atIInf' f)
 
--- TODO: Make this work!
--- theorem exp_decay_of_cuspform (f : CuspForm ⊤ k) :
---     IsBigO UpperHalfPlane.atImInfty f fun z : ℍ ↦ Real.exp (-2 * π * z.im) := by
---   have := exp_decay_of_zero_at_inf zero_lt_one
---     (cuspform_zero_atIInf' f) (modform_hol_infty (f : ModularForm ⊤ k))
---   simp at *
---   have h2 := this.isBigOWith
---   obtain ⟨C, hC⟩ := h2
---   rw [IsBigO]; use C
---   rw [isBigOWith_iff, eventually_iff] at hC ⊢
---   rw [atIInf'_mem] at hC ; rw [UpperHalfPlane.atImInfty_mem]
---   obtain ⟨A, hC⟩ := hC; use A + 1; intro z hz; specialize hC z
---   have h : A < im z := by
---     simp at *
---     rw [UpperHalfPlane.im] at hz
---     norm_cast at *
---     simp at *
---     linarith
---   simp at hC
---   rw [extend_eq_of_mem] at hC
---   swap; exact z.2
---   have : ((1 : ℝPos) : ℝ) = (1 : ℝ) := by rfl
---   simp  [Subtype.coe_eta, div_one] at hC
---   have HC := hC h
---   simp
---   exact HC
+theorem exp_decay_of_cuspform (f : CuspForm (CongruenceSubgroup.Gamma 1)  k) :
+    IsBigO UpperHalfPlane.atImInfty f fun z : ℍ ↦ Real.exp (-2 * π * z.im) := by
+  have := exp_decay_of_zero_at_inf zero_lt_one
+    (cuspform_zero_atIInf' f) (?_) ?_
+  · simp only [div_one] at this
+    sorry
+  · apply modform_hol_infty
+  · apply modform_periodic
 
 end Modforms
