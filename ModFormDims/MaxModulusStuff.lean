@@ -114,6 +114,9 @@ theorem slash_action_eqn'' (k : ℤ) (Γ : Subgroup SL(2, ℤ)) [SlashInvariantF
   rw [denom]
   exact this
 
+example (a : ℝ) (ha : 0 < a) (h1 : a ≤ 1) (k : ℤ) (hk : k ≤ 0) : 1 ≤ a^k := by
+
+
 lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
   obtain ⟨γ, hγ, hdenom⟩ := exists_translate' τ
@@ -124,7 +127,7 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ
   rw [this,norm_mul, norm_zpow]
   have h2 : 0 ≤ ‖f τ‖ := norm_nonneg (f τ)
   have h3 : 1 ≤  ‖denom (γ : SL(2, ℤ)) τ‖ ^ k := by
-    sorry --where is one_le_zpow_of_nonpos₀??
+    sorry
   nlinarith
 
 
