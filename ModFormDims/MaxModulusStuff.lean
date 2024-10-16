@@ -130,7 +130,6 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ
     apply denom_ne_zero
   nlinarith
 
-
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
 -- Clearly a nonzero constant can't be modular of weight < 0 -- we should probably have a lemma
