@@ -84,11 +84,10 @@ lemma exists_translate' (τ : ℍ) :
   · refine ⟨1, by simpa using h, by simp [ModularGroup.coe_one, denom_one]⟩
   · obtain ⟨γ, hγ⟩ := exists_translate τ
     refine ⟨γ, hγ, ?_⟩
-    have := im_smul_eq_div_normSq γ τ
-    simp only [ModularGroup.det_coe', one_mul] at this
+    have h0 := im_smul_eq_div_normSq γ τ
+    simp only [ModularGroup.det_coe', one_mul, ← UpperHalfPlane.ModularGroup.sl_moeb] at h0
     have h1 : τ.im ≤ (γ • τ).im := by nlinarith
-    rw [← UpperHalfPlane.ModularGroup.sl_moeb] at this
-    rw [this, le_div_iff₀ (normSq_denom_pos (↑γ) τ), normSq_eq_norm_sq] at h1
+    rw [h0, le_div_iff₀ (normSq_denom_pos (↑γ) τ), normSq_eq_norm_sq] at h1
     have H : ‖denom γ τ‖^2 ≤ 1 := (mul_le_iff_le_one_right τ.2).mp h1
     simpa using H
 
@@ -110,12 +109,14 @@ variable {F : Type*} [FunLike F ℍ ℂ]
 
 theorem slash_action_eqn'' (k : ℤ) (Γ : Subgroup SL(2, ℤ)) [SlashInvariantFormClass F Γ k] (f : F)
     (γ : Γ) (z : ℍ) : f (γ • z) = (denom γ z) ^ k * f z := by
-  have := SlashInvariantForm.slash_action_eqn' k Γ f γ z
   rw [denom]
-  exact this
+  exact (SlashInvariantForm.slash_action_eqn' k Γ f γ z)
 
 lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
+    /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
+  `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
+  -/
   obtain ⟨γ, hγ, hdenom⟩ := exists_translate' τ
   use γ • τ
   refine ⟨hγ, ?_⟩
@@ -124,16 +125,10 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ
   rw [this,norm_mul, norm_zpow]
   have h2 : 0 ≤ ‖f τ‖ := norm_nonneg (f τ)
   have h3 : 1 ≤  ‖denom (γ : SL(2, ℤ)) τ‖ ^ k := by
-    sorry --where is one_le_zpow_of_nonpos₀??
+    apply one_le_zpow_of_nonpos₀ _ hdenom hk
+    rw [norm_pos_iff]
+    apply denom_ne_zero
   nlinarith
-
-
-
-
-  /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
-  `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
-  -/
-
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
