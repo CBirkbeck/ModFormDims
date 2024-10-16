@@ -1,6 +1,7 @@
 import Mathlib.Analysis.Complex.AbsMax
 import Mathlib.NumberTheory.Modular
 import Mathlib.NumberTheory.ModularForms.Basic
+import Mathlib.NumberTheory.ModularForms.CongruenceSubgroups
 
 /-!
 # Maximum-modulus criteria for functions to be constant
@@ -67,14 +68,30 @@ lemma exists_translate (τ : ℍ) :
   have := UpperHalfPlane.im_pos (γ • τ)
   nlinarith
 
-abbrev Γ := (⊤ : Subgroup SL(2, ℤ))
+abbrev Γ := CongruenceSubgroup.Gamma 1
+
+lemma denom_one (τ : ℍ) : denom 1 τ = 1 := by
+  simp only [denom, OneMemClass.coe_one, Fin.isValue, Units.val_one, ne_eq, one_ne_zero,
+    not_false_eq_true, Matrix.one_apply_ne, ofReal_zero, zero_mul, Matrix.one_apply_eq, ofReal_one,
+    zero_add, norm_one]
+
+lemma ModularGroup.coe_one : UpperHalfPlane.ModularGroup.coe' 1 = 1 := by
+  simp only [ModularGroup.coe', map_one]
 
 lemma exists_translate' (τ : ℍ) :
     ∃ γ : SL(2, ℤ), 1 / 2 ≤ im (γ • τ) ∧ ‖denom γ τ‖ ≤ 1 := by
-  -- If 1/2 ≤ im τ, take γ = id.
-  -- Otherwise, choose γ using `exists_translate`, and then note that im γτ ≥ im τ, from which
-  -- we deduce ‖j γ τ‖ ≤ 1 from im (γτ) = im τ / ‖j(γ, τ)‖ ^ 2.
-  sorry
+  by_cases h : 1 / 2 ≤ τ.im
+  · refine ⟨1, by simpa using h, by simp [ModularGroup.coe_one, denom_one]⟩
+  · obtain ⟨γ, hγ⟩ := exists_translate τ
+    refine ⟨γ, hγ, ?_⟩
+    have := im_smul_eq_div_normSq γ τ
+    simp only [ModularGroup.det_coe', one_mul] at this
+    have h1 : τ.im ≤ (γ • τ).im := by nlinarith
+    rw [← UpperHalfPlane.ModularGroup.sl_moeb] at this
+    rw [this, le_div_iff₀ (normSq_denom_pos (↑γ) τ), normSq_eq_norm_sq] at h1
+    have H : ‖denom γ τ‖^2 ≤ 1 := (mul_le_iff_le_one_right τ.2).mp h1
+    simpa using H
+
 
 lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by

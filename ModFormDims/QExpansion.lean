@@ -512,18 +512,22 @@ theorem cuspform_vanish_infty (f : CuspForm ⊤ k) : IsLittleO atIInf' (extendBy
     simpa using bd
   rw [IsLittleO] at *; exact fun c hc => modform_bound_aux c 1 hc.le (this hc)
 
-theorem modform_periodic (f : ModularForm ⊤ k) (w : ℂ) :
+theorem modform_periodic (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (w : ℂ) :
     (extendByZero f) (w + 1) = (extendByZero f) w :=
   by
   by_cases hw : 0 < im w
   · rw [extendByZero_eq_of_mem f w hw]
     have : 0 < im (w + 1) := by rw [add_im, one_im, add_zero]; exact hw
     rw [extendByZero_eq_of_mem f _ this]
-    have t := SlashInvariantForm.vAdd_width_periodic 1 k 1 f ⟨w, hw⟩
-    rw [UpperHalfPlane.modular_T_zpow_smul] at t
+    have t := SlashInvariantForm.vAdd_width_periodic 1 k 1 f.1 ⟨w, hw⟩
+
     convert t
     simp
-    rw [←UpperHalfPlane.ext_iff, UpperHalfPlane.coe_vadd]
+
+
+
+
+    rw [UpperHalfPlane.ext_iff, UpperHalfPlane.coe_vadd]
     simp
     apply add_comm
   · have : extendByZero f w = 0 := by
@@ -627,8 +631,8 @@ theorem cusp_fcn_vanish (f : CuspForm ⊤ k) : cuspFcnH f 0 = 0 := by
 theorem exp_decay_of_cuspform (f : CuspForm ⊤ k) :
     IsBigO UpperHalfPlane.atImInfty f fun z : ℍ => Real.exp (-2 * π * im z) :=
   by
-  have := exp_decay_of_zero_at_inf 1 (extendByZero f) (modform_periodic (f : ModularForm ⊤ k))  (cuspform_vanish_infty f)
-    (modform_hol_infty (f : ModularForm ⊤ k))
+  have := exp_decay_of_zero_at_inf 1 (extendByZero f) (modform_periodic (f : ModularForm ⊤ k))
+    (cuspform_vanish_infty f) (modform_hol_infty (f : ModularForm ⊤ k))
   simp at *
   have h2 := this.isBigOWith
   obtain ⟨C, hC⟩ := h2
