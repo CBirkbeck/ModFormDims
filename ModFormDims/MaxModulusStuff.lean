@@ -92,13 +92,48 @@ lemma exists_translate' (τ : ℍ) :
     have H : ‖denom γ τ‖^2 ≤ 1 := (mul_le_iff_le_one_right τ.2).mp h1
     simpa using H
 
+def coe1 : SL(2, ℤ) → Γ :=
+  fun g => ⟨↑g, by simp [Γ, CongruenceSubgroup.Gamma_one_top]⟩
+
+instance : Coe SL(2, ℤ) Γ := ⟨coe1⟩
+
+@[simp]
+lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ =  (g • τ)  := by
+  rw [coe1]
+  simp
+
+@[simp]
+lemma denom_coe1_eq_denom {g : SL(2, ℤ)} {τ : ℍ} : denom (g : Γ) τ = denom g τ := by
+  simp only [denom, coe1, Fin.isValue, ModularGroup.coe'_apply_complex]
+
+variable {F : Type*} [FunLike F ℍ ℂ]
+
+theorem slash_action_eqn'' (k : ℤ) (Γ : Subgroup SL(2, ℤ)) [SlashInvariantFormClass F Γ k] (f : F)
+    (γ : Γ) (z : ℍ) : f (γ • z) = (denom γ z) ^ k * f z := by
+  have := SlashInvariantForm.slash_action_eqn' k Γ f γ z
+  rw [denom]
+  exact this
 
 lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
+  obtain ⟨γ, hγ, hdenom⟩ := exists_translate' τ
+  use γ • τ
+  refine ⟨hγ, ?_⟩
+  have := slash_action_eqn'' k Γ f γ τ
+  rw [coe_smul_eq_smul, denom_coe1_eq_denom] at this
+  rw [this,norm_mul, norm_zpow]
+  have h2 : 0 ≤ ‖f τ‖ := norm_nonneg (f τ)
+  have h3 : 1 ≤  ‖denom (γ : SL(2, ℤ)) τ‖ ^ k := by
+    sorry --where is one_le_zpow_of_nonpos₀??
+  nlinarith
+
+
+
+
   /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
   `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
   -/
-  sorry
+
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
