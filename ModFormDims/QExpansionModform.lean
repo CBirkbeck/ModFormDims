@@ -40,6 +40,15 @@ lemma tendsto_atIInf'_ofComplex :
   simpa only [ofComplex_apply' <| (le_max_left _ _).trans_lt hz] using
     (le_max_right _ _).trans hz.le
 
+lemma tendsto_val_atImInfty :
+    Tendsto UpperHalfPlane.coe atImInfty atIInf' := by
+  intro U hU
+  obtain ⟨A, hA⟩ := atIInf'_mem.mp hU
+  simp only [Filter.mem_map, atImInfty_mem, Set.mem_preimage]
+  refine ⟨A + 1, fun z hz ↦ hA _ ?_⟩
+  simp only [coe_im]
+  linarith
+
 lemma im_pos_mem_atIInf' : {z | 0 < z.im} ∈ atIInf' := atIInf'_mem.mpr ⟨0, fun _ ↦ by tauto⟩
 
 lemma mdifferentiableAt_ofComplex (z : ℂ) (hz : 0 < z.im) :
@@ -121,7 +130,7 @@ def cuspFcnH (f : ℍ → ℂ) : ℂ → ℂ := cuspFcn 1 (f ∘ ofComplex)
 
 variable {k : ℤ}
 
-theorem eq_cuspFcnH (z : ℍ) (f : ModularForm (CongruenceSubgroup.Gamma 1) k) :
+theorem eq_cuspFcnH (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (z : ℍ) :
     f z = cuspFcnH f (Q 1 z) := by
   convert eq_cuspFcn one_ne_zero (modform_periodic f) z
   simp only [Function.comp_apply, ofComplex_apply]
@@ -138,13 +147,13 @@ theorem cusp_fcn_diff (f : ModularForm (CongruenceSubgroup.Gamma 1) k)
 theorem cusp_fcn_vanish (f : CuspForm (CongruenceSubgroup.Gamma 1) k) : cuspFcnH f 0 = 0 :=
   cuspFcn_zero_of_zero_at_inf zero_lt_one (cuspform_zero_atIInf' f)
 
-theorem exp_decay_of_cuspform (f : CuspForm (CongruenceSubgroup.Gamma 1)  k) :
-    IsBigO UpperHalfPlane.atImInfty f fun z : ℍ ↦ Real.exp (-2 * π * z.im) := by
+theorem exp_decay_of_cuspform (f : CuspForm (CongruenceSubgroup.Gamma 1) k) :
+    IsBigO atImInfty f fun z : ℍ ↦ Real.exp (-2 * π * z.im) := by
   have := exp_decay_of_zero_at_inf zero_lt_one
-    (cuspform_zero_atIInf' f) (?_) ?_
-  · simp only [div_one] at this
-    sorry
-  · apply modform_hol_infty
-  · apply modform_periodic
+    (cuspform_zero_atIInf' f) (modform_hol_infty f) (modform_periodic f)
+  simp only [div_one] at this
+  convert this.comp_tendsto tendsto_val_atImInfty using 1
+  ext τ
+  simp only [Function.comp_apply, ofComplex_apply]
 
 end Modforms
