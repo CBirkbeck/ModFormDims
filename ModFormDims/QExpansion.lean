@@ -1,10 +1,6 @@
 import Mathlib.Analysis.Complex.RemovableSingularity
-import Mathlib.Analysis.Complex.UpperHalfPlane.Basic
-import Mathlib.Analysis.Complex.UpperHalfPlane.Topology
-import Mathlib.NumberTheory.ModularForms.Basic
-import Mathlib.NumberTheory.ModularForms.Identities
 import Mathlib.Analysis.Calculus.InverseFunctionTheorem.Deriv
-import ModFormDims.holoext
+import Mathlib.Order.Filter.ZeroAndBoundedAtFilter
 
 /-!
 # q-expansions of periodic functions
@@ -269,18 +265,18 @@ end HoloOnC
 
 section HoloAtInfC
 
-variable (h : ℝ) (f : ℂ → ℂ) (hf : ∀ w : ℂ, f (w + h) = f w)
+variable {h : ℝ} {f : ℂ → ℂ} (hf : ∀ w : ℂ, f (w + h) = f w)
 
-theorem F_bound (hh : 0 < h) (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ)) :
-    IsBigO (𝓝[≠] (0 : ℂ)) (cuspFcn h f) (1 : ℂ → ℂ) := by
-  refine' IsBigO.congr' (h_bd.comp_tendsto <| z_tendsto hh) _ (by rfl)
+theorem F_bound (hh : 0 < h) (h_bd : BoundedAtFilter atIInf' f) :
+    BoundedAtFilter (𝓝[≠] (0 : ℂ)) (cuspFcn h f) := by
+  refine IsBigO.congr' (h_bd.comp_tendsto <| z_tendsto hh) ?_ (by rfl)
   apply eventually_nhdsWithin_of_forall; intro q hq
   rw [cuspFcn_eq_of_nonzero _ _ _ hq]; rfl
 
-theorem F_diff_at_zero (hh : 0 < h) (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ))
+theorem F_diff_at_zero (hh : 0 < h) (h_bd : BoundedAtFilter atIInf' f)
     (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) (hf : ∀ w : ℂ, f (w + h) = f w) :
     DifferentiableAt ℂ (cuspFcn h f) 0 := by
-  obtain ⟨c, t⟩ := (F_bound _ _  hh h_bd).bound
+  obtain ⟨c, t⟩ := (F_bound hh h_bd).bound
   have T:= (F_diff_near_zero f hh h_hol hf)
   replace t := T.and t
   simp only [norm_eq_abs, Pi.one_apply, AbsoluteValue.map_one, mul_one] at t
@@ -294,15 +290,14 @@ theorem F_diff_at_zero (hh : 0 < h) (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ))
     simp only [Function.comp_apply, norm_eq_abs, Set.mem_image, Set.mem_diff, Set.mem_singleton_iff,
       forall_exists_index, and_imp]
     intro y q hq hq2 hy
-    rw [← hy]
-    exact (hS1 q hq hq2).2
+    simpa only [← hy, norm_one, mul_one] using (hS1 q hq hq2).2
   have := differentiableOn_update_limUnder_of_bddAbove (IsOpen.mem_nhds hS2 hS3) h_diff hF_bd
   rw [← update_twice] at this
   exact this.differentiableAt (IsOpen.mem_nhds hS2 hS3)
 
 /-- If `f` is periodic, and holomorphic and bounded near `I∞`, then it tends to a limit at `I∞`,
 and this limit is the value of its cusp function at 0. -/
-theorem tendsto_at_I_inf (hh : 0 < h) (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ))
+theorem tendsto_at_I_inf (hh : 0 < h) (h_bd : BoundedAtFilter atIInf' f)
     (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) (hf : ∀ w : ℂ, f (w + h) = f w) :
     Tendsto f atIInf' (𝓝 <| cuspFcn h f 0) := by
   suffices Tendsto (cuspFcn h f) (𝓝[≠] 0) (𝓝 <| cuspFcn h f 0) by
@@ -316,36 +311,25 @@ theorem tendsto_at_I_inf (hh : 0 < h) (h_bd : IsBigO atIInf' f (1 : ℂ → ℂ)
     exact q_tendsto hh
     apply Eventually.of_forall; intro q; apply exp_ne_zero
   exact tendsto_nhdsWithin_of_tendsto_nhds
-    (F_diff_at_zero _ _ hh h_bd h_hol hf).continuousAt.tendsto
+    (F_diff_at_zero hh h_bd h_hol hf).continuousAt.tendsto
 
-theorem cuspFcn_zero_of_zero_at_inf (hh : 0 < h) (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ)) :
+theorem cuspFcn_zero_of_zero_at_inf (hh : 0 < h) (h_zer : ZeroAtFilter atIInf' f) :
     cuspFcn h f 0 = 0 := by
-  rw [cuspFcn, Function.update]; split_ifs; swap; tauto
-  suffices Tendsto (cuspFcn0 h f) (𝓝[{0}ᶜ] 0) (𝓝 (0 : ℂ)) by exact Tendsto.limUnder_eq this
-  have :IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn h f) 1  (F := ℂ) := by
-    refine' IsLittleO.congr' (h_bd.comp_tendsto <| z_tendsto hh) _ (by rfl)
-    apply eventually_nhdsWithin_of_forall; intro q hq; rw [cuspFcn_eq_of_nonzero _ _ _ hq]; rfl
-  have : IsLittleO (𝓝[≠] (0 : ℂ)) (cuspFcn0 h f) 1  (F:= ℂ) := by
-    refine' IsLittleO.congr' this _ (by rfl); apply eventually_nhdsWithin_of_forall
-    apply cuspFcn_eq_of_nonzero
-  simpa using this.tendsto_div_nhds_zero
+  rw [cuspFcn, Function.update_same]
+  suffices Tendsto (cuspFcn0 h f) (𝓝[{0}ᶜ] 0) (𝓝 (0 : ℂ)) from Tendsto.limUnder_eq this
+  exact h_zer.comp (z_tendsto hh)
 
 /--
 Main theorem of this file: if `f` is periodic, holomorphic near `I∞`, and tends to zero at `I∞`,
 then in fact it tends to zero exponentially fast.
 -/
-theorem exp_decay_of_zero_at_inf (hh : 0 < h) (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ))
+theorem exp_decay_of_zero_at_inf (hh : 0 < h) (h_zer : ZeroAtFilter atIInf' f)
     (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) (hf : ∀ w : ℂ, f (w + h) = f w) :
     IsBigO atIInf' f fun z : ℂ ↦ Real.exp (-2 * π * im z / h) := by
-  have F0 := cuspFcn_zero_of_zero_at_inf h f hh h_bd
-  have : f = fun z : ℂ ↦ (cuspFcn h f) (Q h z) := by
-    ext1 z
-    exact eq_cuspFcn hh.ne' hf _
-  rw [this]
-  simp_rw [← abs_q_eq h, ← norm_eq_abs]
-  apply IsBigO.norm_right
-  apply (bound_holo_fcn (cuspFcn h f) ?_ ?_).comp_tendsto (q_tendsto hh)
-  apply (F_diff_at_zero _ _ hh h_bd.isBigO h_hol hf)
-  convert F0
+  rw [funext (eq_cuspFcn hh.ne' hf)]
+  simp only [← abs_q_eq h, ← norm_eq_abs]
+  refine ((bound_holo_fcn _ ?_ ?_).comp_tendsto (q_tendsto hh)).norm_right
+  · exact F_diff_at_zero hh h_zer.boundedAtFilter h_hol hf
+  · exact cuspFcn_zero_of_zero_at_inf hh h_zer
 
 end HoloAtInfC
