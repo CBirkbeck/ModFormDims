@@ -1,7 +1,7 @@
 import ModFormDims.QExpansion
 
 /-!
-# q-expansions of periodic functions
+# q-expansions of modular forms
 
 We show that if `f : ℂ → ℂ` satisfies `f(z + h) = f(z)`, for some nonzero real `h`, then
 there is a well-defined `F` such that `f(z) = F(exp(2 * π * I * z / h))` for all `z`;
@@ -28,6 +28,7 @@ local notation "GL(" n ", " R ")" "⁺" => Matrix.GLPos (Fin n) R
 
 attribute [-instance] Matrix.SpecialLinearGroup.instCoeFun
 attribute [-instance] Matrix.GeneralLinearGroup.instCoeFun
+
 variable (g : SL(2, ℤ)) (z : ℍ) (Γ : Subgroup SL(2, ℤ))
 
 /-! Now we prove corresponding results about modular forms. -/
@@ -120,10 +121,44 @@ theorem modform_periodic (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (w : �
 
 theorem modform_hol (f : ModularForm ⊤ k) (z : ℂ) (hz : 0 < im z) :
     DifferentiableAt ℂ (extendByZero f) z := by
-  have hf_hol := EisensteinSeries.mdiff_to_holo (EisensteinSeries.holExtn f) f.holo'
-  rw [← isHolomorphicOn_iff_differentiableOn] at hf_hol
-  simp at hf_hol
-  exact (hf_hol z hz).differentiableAt ((isOpen_iff_mem_nhds.mp upper_half_plane_isOpen) z hz)
+  have foo1 : extendByZero f =ᶠ[𝓝 z] f ∘ UpperHalfPlane.ofComplex := by
+    refine eventually_of_mem (U := {z : ℂ | 0 < z.im}) ?_ ?_
+    · apply IsOpen.mem_nhds
+      exact continuous_im.isOpen_preimage _ isOpen_Ioi
+      exact hz
+    · intro x hx
+      rw [extendByZero_eq_of_mem _ _ hx]
+      simp only [Function.comp_apply]
+      have : ofComplex x = ⟨x, hx⟩ := UpperHalfPlane.ofComplex_apply ⟨x, hx⟩
+      rw [← this]
+  have foo2 : UpperHalfPlane.coe ∘ UpperHalfPlane.ofComplex =ᶠ[𝓝 z] id := by
+    refine eventually_of_mem (U := {z : ℂ | 0 < z.im}) ?_ ?_
+    · apply IsOpen.mem_nhds
+      exact continuous_im.isOpen_preimage _ isOpen_Ioi
+      exact hz
+    · intro x hx
+      simp only [Function.comp_apply, id_eq, Set.mem_setOf.mp hx, dite_true]
+      have : ofComplex x = ⟨x, hx⟩ := UpperHalfPlane.ofComplex_apply ⟨x, hx⟩
+      rw [this]
+      rfl
+  refine DifferentiableAt.congr_of_eventuallyEq ?_ foo1
+  rw [← mdifferentiableAt_iff_differentiableAt]
+  refine MDifferentiableAt.comp z (f.holo' _) ?_
+  rw [mdifferentiableAt_iff]
+  constructor
+  · rw [ContinuousAt, nhds_induced, tendsto_comap_iff]
+    refine Tendsto.congr' foo2.symm ?_
+    have : ofComplex z = ⟨z, hz⟩ := UpperHalfPlane.ofComplex_apply ⟨z, hz⟩
+    rw [this, Subtype.coe_mk]
+    exact tendsto_id
+  · simp only [writtenInExtChartAt, extChartAt, PartialHomeomorph.extend,
+      OpenEmbedding.toPartialHomeomorph_source, PartialHomeomorph.singletonChartedSpace_chartAt_eq,
+      modelWithCornersSelf_partialEquiv, PartialEquiv.trans_refl, PartialHomeomorph.toFun_eq_coe,
+      OpenEmbedding.toPartialHomeomorph_apply, PartialHomeomorph.refl_partialEquiv,
+      PartialEquiv.refl_source, PartialEquiv.refl_symm, PartialEquiv.refl_coe, CompTriple.comp_eq,
+      modelWithCornersSelf_coe, Set.range_id, id_eq, differentiableWithinAt_univ]
+    exact DifferentiableAt.congr_of_eventuallyEq differentiableAt_id foo2
+
 
 theorem modform_hol_infty (f : ModularForm ⊤ k) :
     ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ (extendByZero f) z := by
