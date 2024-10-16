@@ -67,20 +67,21 @@ lemma exists_translate (τ : ℍ) :
   have := UpperHalfPlane.im_pos (γ • τ)
   nlinarith
 
-def j (γ : SL(2, ℤ)) (τ : ℍ) : ℂ := sorry -- automorphy factor, can't find the definition
+abbrev Γ := (⊤ : Subgroup SL(2, ℤ))
 
 lemma exists_translate' (τ : ℍ) :
-    ∃ γ : SL(2, ℤ), 1 / 2 ≤ im (γ • τ) ∧ ‖j γ τ‖ ≤ 1 := by
+    ∃ γ : SL(2, ℤ), 1 / 2 ≤ im (γ • τ) ∧ ‖denom γ τ‖ ≤ 1 := by
   -- If 1/2 ≤ im τ, take γ = id.
   -- Otherwise, choose γ using `exists_translate`, and then note that im γτ ≥ im τ, from which
   -- we deduce ‖j γ τ‖ ≤ 1 from im (γτ) = im τ / ‖j(γ, τ)‖ ^ 2.
   sorry
 
-lemma modform_exists_norm_le : false := sorry
-  -- Statement: If `f` is a modular form of weight `k ≤ 0`, then for any τ ∈ ℍ,
-  -- ∃ ξ ∈ ℍ with 1/2 ≤ im ξ and ‖f τ‖ ≤ ‖f ξ‖.
-  -- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use slash invariance, & the
-  -- fact that ‖j γ τ‖ ≤ 1.
+lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
+    ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
+  /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
+  `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
+  -/
+  sorry
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
