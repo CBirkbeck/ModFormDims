@@ -9,8 +9,8 @@ import ModFormDims.holoext
 /-!
 # q-expansions of periodic functions
 
-We show that if `f : ℂ → ℂ` satisfies `f(z + h) = f(z)`, for some nonzero real `h`, then
-there is a well-defined `F` such that `f(z) = F(exp(2 * π * I * z / h))` for all `z`;
+We show that if `f : ℂ → ℂ` satisfies `f (z + h) = f z`, for some nonzero real `h`, then
+there is a well-defined `F` such that `f z = F (exp (2 * π * I * z / h))` for all `z`;
 and if `f` is holomorphic at some `z`, then `F` is holomorphic at `q = exp (2 * π * I * z / h)`.
 
 We also show (using Riemann's removable singularity theorem) that if `f` is holomorphic and bounded
@@ -19,153 +19,51 @@ for all sufficiently large `im z`, then `F` extends to a holomorphic function on
 to zero.
 -/
 
-open ModularForm Complex Filter Asymptotics UpperHalfPlane
+open Complex Filter Asymptotics
 
-open scoped Real Topology Manifold Filter ComplexConjugate SlashInvariantForm
-
-section PeterssonProduct
+open scoped Real Topology
 
 noncomputable section
 
-/-!
-## Formalism copied from elsewhere in ModularForms library
--/
-local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
+abbrev ℝPos := {u : ℝ // 0 < u}
 
-local notation "GL(" n ", " R ")" "⁺" => Matrix.GLPos (Fin n) R
-
-attribute [-instance] Matrix.SpecialLinearGroup.instCoeFun
-attribute [-instance] Matrix.GeneralLinearGroup.instCoeFun
-variable (g : SL(2, ℤ)) (z : ℍ) (Γ : Subgroup SL(2, ℤ))
-
-theorem sl_moeb (A : SL(2, ℤ)) (z : ℍ) :
-    A • z = @SMul.smul _ _ MulAction.toSMul (A : Matrix.GLPos (Fin 2) ℝ) z :=
-  rfl
-
-theorem sl_moeb' (A : SL(2, ℤ)) (z : ℍ) :
-    letI := @MulAction.toSMul { x // x ∈ GL(2, ℝ)⁺ } ℍ
-    A • z = (A : Matrix.GLPos (Fin 2) ℝ) • z :=
-  rfl
-
-/-- Integrand in the Petersson product of two weight `k` modular forms. -/
-def pet (f g : ℍ → ℂ) (k : ℤ) (z : ℍ) : ℂ := conj (f z) * g z * z.im ^ k
-
-/--
-Integrand in the Petersson product of a weight `k` form with itself (as a real-valued function).
--/
-def petSelf (f : ℍ → ℂ) (k : ℤ) (z : ℍ) : ℝ :=  Complex.abs (f z) ^ 2 * z.im ^ k
-
-theorem pet_is_invariant {k : ℤ} {Γ : Subgroup SL(2, ℤ)} (f g : SlashInvariantForm Γ k)
-    {γ : SL(2, ℤ)} (hγ : γ ∈ Γ) (z : ℍ) :
-    pet f g k (γ • z) = pet f g k z := by
-  dsimp only [pet]
-  let D := denom γ z
-  have hD : D ≠ 0 := by apply denom_ne_zero
-  have mod_g : g (γ • z) = D ^ k * g z := by
-    have tt := (SlashInvariantForm.slash_action_eqn' k Γ g) ⟨γ, hγ⟩ z
-    dsimp only [denom] at *; exact tt
-  have mod_f : conj (f (γ • z)) = conj D ^ k * conj (f z) := by
-    have tt : f (γ • z) = D ^ k * f z := by
-      apply (SlashInvariantForm.slash_action_eqn' k Γ f) ⟨γ, hγ⟩ z
-    rw [tt, starRingEnd_apply, starRingEnd_apply, star_mul', ← star_zpow₀]; rfl
-  rw [mod_f, mod_g]
-  suffices ↑(γ • z).im = ↑(UpperHalfPlane.im z) / D / conj D by
-    rw [this]; simp (config := { zeta := false }) only [coe_im, div_zpow]
-    trans (z.im : ℂ) ^ k / D ^ k / conj D ^ k * D ^ k * conj D ^ k * g z * conj (f z)
-    · ring
-    trans (UpperHalfPlane.im z : ℂ) ^ k * g z * conj (f z)
-    swap
-    · ring
-    congr 2
-    have h1 : D ^ k ≠ 0 := zpow_ne_zero _ hD
-    have h2 : conj D ^ k ≠ 0 := by
-      apply zpow_ne_zero; rw [starRingEnd_apply, star_ne_zero]; exact hD
-    rw [div_div, mul_assoc];
-    apply div_mul_cancel₀
-    apply mul_ne_zero h1 h2
-  have : ((γ • z : ℍ) : ℂ).im = UpperHalfPlane.im z / Complex.normSq D :=  by
-    rw [UpperHalfPlane.coe_im, sl_moeb', UpperHalfPlane.im_smul_eq_div_normSq γ z]
-    refine congr_arg (fun x => x / Complex.normSq D) ?_
-    convert one_mul (UpperHalfPlane.im z)
-    simp  [UpperHalfPlane.coe_im,
-      Matrix.SpecialLinearGroup.coe_GLPos_coe_GL_coe_matrix,
-      Matrix.SpecialLinearGroup.coe_matrix_coe, Int.coe_castRingHom]
-  apply_fun ((↑) : ℝ → ℂ) at this
-  convert this
-  simp only [UpperHalfPlane.coe_im, Complex.ofReal_div]
-  rw [div_div, mul_conj]
-
-
-theorem petSelf_eq (f : ℍ → ℂ) (k : ℤ) (z : ℍ) : petSelf f k z = re (pet f f k z) := by
-  dsimp only [pet, petSelf]
-  simp_rw [starRingEnd_apply]
-  have : (star (f z) * f z * (z.im : ℂ) ^ k).re = (star (f z) * f z).re * ↑z.im ^ k := by
-    conv =>
-      lhs
-      congr
-      rw [mul_comm]
-    rw [← ofReal_zpow, re_ofReal_mul, mul_comm]
-  rw [this]; congr
-  rw [mul_comm, ← normSq_eq_abs, normSq]
-  simp only [MonoidWithZeroHom.coe_mk, mul_re, conj_re, conj_im, mul_neg,
-    sub_neg_eq_add]
-  simp only [ZeroHom.coe_mk, RCLike.star_def, conj_re, conj_im, mul_neg, sub_neg_eq_add]
-
-
-theorem petSelf_is_invariant {k : ℤ} {Γ : Subgroup SL(2, ℤ)} (f : SlashInvariantForm Γ k)
-    {γ : SL(2, ℤ)} (hγ : γ ∈ Γ) (z : ℍ) : petSelf f k (γ • z) = petSelf f k z := by
-  rw [petSelf_eq, petSelf_eq]; congr 1; exact pet_is_invariant f f hγ z
-
-
-end
-
-
-
-noncomputable section
-
-abbrev ℝPos :=
-  { u : ℝ // 0 < u }
-
-instance : One ℝPos := by
-  use 1
-  linarith
+instance : One ℝPos := ⟨1, zero_lt_one⟩
 
 /-- Function-theoretic lemma, maybe move this elsewhere? -/
 theorem bound_holo_fcn (g : ℂ → ℂ) (hg : DifferentiableAt ℂ g 0) (hg' : g 0 = 0) :
     IsBigO (𝓝 0) g id := by
-    replace hg := hg.hasDerivAt.isBigO_sub
-    simp_rw [hg', sub_zero] at hg ;
-    exact hg
+  simpa only [hg', sub_zero] using hg.hasDerivAt.isBigO_sub
 
 section QAndZ
 
 variable (h : ℝPos)
 
-def Q (z : ℂ) : ℂ :=
-  exp (2 * π * Complex.I * z / h)
+def Q (z : ℂ) : ℂ := exp (2 * π * Complex.I * z / h)
 
 def Z (q : ℂ) : ℂ :=
   h / (2 * π * Complex.I) * log q
 
-theorem log_exp' (z : ℂ) : ∃ n : ℤ, log (exp z) = z + n * (2 * π * Complex.I) := by
-  rw [← exp_eq_exp_iff_exists_int, exp_log]; exact exp_ne_zero z
+theorem log_exp' (z : ℂ) :
+    ∃ n : ℤ, log (exp z) = z + n * (2 * π * Complex.I) := by
+  rw [← exp_eq_exp_iff_exists_int, exp_log]
+  exact exp_ne_zero z
 
-
-
-theorem QZ_eq_id (e : ℂ) (hq : e ≠ 0) : Q h (Z h e) = e := by
-  dsimp only [Q, Z]
-  suffices 2 * ↑π * Complex.I * (↑h / (2 * ↑π * Complex.I) * log e) / ↑h = log e by rw [this]; exact exp_log hq
+theorem QZ_eq_id (e : ℂ) (hq : e ≠ 0) :
+    Q h (Z h e) = e := by
+  suffices 2 * ↑π * Complex.I * (↑h / (2 * ↑π * Complex.I) * log e) / ↑h = log e by
+    simpa only [Q, Z, this] using exp_log hq
   have : (h : ℂ) ≠ 0 := ofReal_ne_zero.mpr h.2.ne'
-  field_simp [two_pi_I_ne_zero, this];
+  field_simp [two_pi_I_ne_zero, this]
 
-theorem abs_q_eq (z : ℂ) : abs (Q h z) = Real.exp (-2 * π * im z / h) := by
-  dsimp only [Q]; rw [abs_exp]; congr
-  rw [div_eq_mul_inv, mul_comm]
-  have : (↑h)⁻¹ = (↑(h : ℝ)⁻¹ : ℂ) := by simp;
-  rw [this]
-  rw [re_ofReal_mul]
+theorem abs_q_eq (z : ℂ) :
+    abs (Q h z) = Real.exp (-2 * π * im z / h) := by
+  dsimp only [Q]
+  rw [abs_exp]
+  congr
+  have : (↑h)⁻¹ = (↑(h : ℝ)⁻¹ : ℂ) := by simp
+  rw [div_eq_mul_inv, mul_comm, this, re_ofReal_mul]
   have : 2 * ↑π * Complex.I * z = ↑(2 * π) * z * Complex.I := by simp; ring
-  rw [this, mul_I_re, im_ofReal_mul]; field_simp [h.2.ne']
+  simp only [this, mul_I_re, im_ofReal_mul, div_eq_inv_mul, neg_mul]
 
 theorem im_z_eq (q : ℂ) : im (Z h q) = -h / (2 * π) * Real.log (abs q) := by
   dsimp only [Z]
@@ -178,7 +76,9 @@ theorem im_z_eq (q : ℂ) : im (Z h q) = -h / (2 * π) * Real.log (abs q) := by
 theorem ZQ_eq_mod_period (s : ℂ) : ∃ m : ℤ, Z h (Q h s) = s + m * h := by
   dsimp only [Q, Z]
   have t := log_exp' (2 * ↑π * Complex.I * s / ↑h)
-  cases' t with m t; use m; rw [t]
+  cases' t with m t
+  use m
+  rw [t]
   have : (h : ℂ) ≠ 0 := ofReal_ne_zero.mpr h.2.ne'
   field_simp [two_pi_I_ne_zero]; ring
 
@@ -225,7 +125,7 @@ theorem q_tendsto : Tendsto (Q h) atIInf' (𝓝 0) := by
     suffices Set.range Complex.im = ⊤ by rw [this]; apply univ_mem
     ext1 x; simp only [Set.mem_range, Set.top_eq_univ, Set.mem_univ, iff_true]
     use Complex.I * x; simp
-  have := (@tendsto_comap'_iff ℝ ℝ ℂ (fun y => Real.exp (-2 * π * y / ↑h)) atTop (𝓝 0) im this).mpr
+  have := (@tendsto_comap'_iff ℝ ℝ ℂ (fun y ↦ Real.exp (-2 * π * y / ↑h)) atTop (𝓝 0) im this).mpr
   apply this; refine' Real.tendsto_exp_atBot.comp _
   apply Filter.Tendsto.atBot_div_const h.2
   apply Filter.Tendsto.const_mul_atTop_of_neg; · simpa using Real.pi_pos;
@@ -237,15 +137,14 @@ section PeriodicOnC
 
 variable (h : ℝPos) (f : ℂ → ℂ) (hf : ∀ w : ℂ, f (w + h) = f w)
 
-def cuspFcn0 : ℂ → ℂ := fun q => f (Z h q)
+def cuspFcn0 : ℂ → ℂ := fun q ↦ f (Z h q)
 
 def cuspFcn : ℂ → ℂ :=
   Function.update (cuspFcn0 h f) 0 (limUnder (𝓝[≠] (0 : ℂ)) (cuspFcn0 h f))
 
-theorem cuspFcn_eq_of_nonzero (q : ℂ) (hq : q ≠ 0) : (cuspFcn h f) q = (cuspFcn0 h f) q := by
-  rw [cuspFcn, Function.update]; split_ifs
-  · exfalso; norm_cast at *
-  · rfl
+theorem cuspFcn_eq_of_nonzero (q : ℂ) (hq : q ≠ 0) :
+    cuspFcn h f q = cuspFcn0 h f q :=
+  Function.update_noteq hq ..
 
 theorem update_twice :
     cuspFcn h f = Function.update (cuspFcn h f) 0 (limUnder (𝓝[≠] (0 : ℂ)) (cuspFcn h f)) := by
@@ -263,7 +162,6 @@ private theorem is_periodic_aux (z : ℂ) (m : ℕ) (hf : ∀ w : ℂ, f (w + h)
     f (z + m * h) = f z := by
   induction' m with m hm generalizing z;
   simp
-
   rw [Nat.cast_add, Nat.cast_one, add_mul, ← add_assoc, one_mul]
   rw [hf (z + m * h)]; exact hm z
 
@@ -277,7 +175,7 @@ theorem is_periodic (z : ℂ) (m : ℤ) (hf : ∀ w : ℂ, f (w + h) = f w) : f 
   have :=(is_periodic_aux h f  (z - (m + 1) * h) (m+1) hf).symm
   norm_cast at *
   simp at *
-  rw [←this]
+  rw [← this]
   apply congr_arg
   ring
 
@@ -326,8 +224,8 @@ theorem cuspFcn_diff_at (z : ℂ) (hol_z : DifferentiableAt ℂ f z) (hf : ∀ w
     have hL2 : L ∘ Q h =ᶠ[𝓝 z] (id : ℂ → ℂ) :=
       (qdiff.hasStrictFDerivAt_equiv diff_ne).eventually_left_inverse
     replace hL2 := EventuallyEq.eq_of_nhds hL2;
-    rw [ id_eq] at hL2
-    rw [←hL2]
+    rw [id_eq] at hL2
+    rw [← hL2]
     simp
   rw [this] at hol_z
   exact (DifferentiableAt.comp q hol_z diff_L).congr_of_eventuallyEq hF.symm
@@ -399,16 +297,15 @@ theorem cuspFcn_zero_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ
     apply cuspFcn_eq_of_nonzero
   simpa using this.tendsto_div_nhds_zero
 
-/-- Main theorem of this file: if `f` is periodic, holomorphic near `I∞`, and tends to zero
-at `I∞`, then in fact it tends to zero exponentially fast. -/
+/--
+Main theorem of this file: if `f` is periodic, holomorphic near `I∞`, and tends to zero at `I∞`,
+then in fact it tends to zero exponentially fast.
+-/
 theorem exp_decay_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ))
     (h_hol : ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ f z) (hf : ∀ w : ℂ, f (w + h) = f w) :
-    IsBigO atIInf' f fun z : ℂ => Real.exp (-2 * π * im z / h) := by
+    IsBigO atIInf' f fun z : ℂ ↦ Real.exp (-2 * π * im z / h) := by
   have F0 := cuspFcn_zero_of_zero_at_inf ?_ _ h_bd
-  have : f = fun z : ℂ => (cuspFcn h f) (Q h z) := by ext1 z; apply eq_cuspFcn _ _ _ hf
-  --rw [this]
-  --simp
-  --rw [← abs_q_eq h, ← norm_eq_abs]
+  have : f = fun z : ℂ ↦ (cuspFcn h f) (Q h z) := by ext1 z; apply eq_cuspFcn _ _ _ hf
   rw [this]
   simp_rw [← abs_q_eq h, ← norm_eq_abs]
   apply IsBigO.norm_right
@@ -416,280 +313,4 @@ theorem exp_decay_of_zero_at_inf (h_bd : IsLittleO atIInf' f (1 : ℂ → ℂ))
   apply  (F_diff_at_zero _ _ h_bd.isBigO h_hol hf)
   convert F0
 
-
 end HoloAtInfC
-
-/-! Now we prove corresponding results about modular forms. -/
-
-
-local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
-
-instance : VAdd ℝ ℍ := by
-  constructor; intro h z; refine' ⟨z + h, _⟩;
-  suffices 0 < Complex.im (z + h) by exact this
-  rw [Complex.add_im, Complex.ofReal_im, add_zero]; exact z.2
-
-/-! Tedious checks that notions of holomorphic, bounded, etc are compatible with extension-by-0--/
-
-
-section ModformEquivs
-
-variable {f : ℍ → ℂ} {k : ℤ}
-
-theorem modform_bound_aux (C : ℝ) (g : ℂ → ℂ) (hc : 0 ≤ C)
-    (h_bd : IsBigOWith C atImInfty f fun z : ℍ => g z) :
-    IsBigOWith C atIInf' (extendByZero f) g := by
-  rw [isBigOWith_iff] at h_bd ⊢
-  apply eventually_of_mem
-  show {z : ℂ | Complex.abs (extendByZero f z) ≤ C * Complex.abs (g z)} ∈ atIInf'
-  · rw [atIInf'_mem]
-    rw [atImInfty, eventually_iff_exists_mem] at h_bd ; obtain ⟨v, hv, h_bd⟩ := h_bd
-    rw [mem_comap', mem_atTop_sets] at hv ; cases' hv with a hv; use a
-    intro z hz; specialize hv (im z) hz.le; dsimp at hv
-    simp_rw [extendByZero]; dsimp; split_ifs with h
-    swap; · rw [AbsoluteValue.map_zero]; refine' mul_nonneg hc _; apply AbsoluteValue.nonneg
-    specialize h_bd ⟨z, h⟩
-    specialize h_bd (hv _); rfl; exact h_bd
-  · dsimp; intro x hx; linarith
-
-local notation:73 f "∣[" k:0 "," A "]" => SlashAction.map ℂ k A f
-
-theorem modform_bounded (f : ModularForm ⊤ k) :
-    IsBigO atIInf' (extendByZero f) (1 : ℂ → ℂ) := by
-  have bd := f.bdd_at_infty' (1 : SL(2, ℤ))
-  have : f.toFun∣[k,(1 : SL(2, ℤ))] = f := by apply SlashAction.slash_one
-  simp at bd
-  rw [ IsBoundedAtImInfty] at bd
-  rw [BoundedAtFilter] at bd
-  obtain ⟨c, c_pos, bd⟩ := bd.exists_nonneg
-  rw [atIInf']
-  apply (modform_bound_aux c 1 c_pos _).isBigO
-  simp
-  simp_rw [IsBigOWith] at *
-  simp at *
-  exact bd
-
-theorem cuspform_vanish_infty (f : CuspForm ⊤ k) :
-    IsLittleO atIInf' (extendByZero f) (1 : ℂ → ℂ) := by
-  have bd := f.zero_at_infty' (1 : SL(2, ℤ))
-  have : f.toFun∣[k,(1 : SL(2, ℤ))] = f := by apply SlashAction.slash_one
-  simp at bd
-  rw [IsZeroAtImInfty] at bd
-  have : IsLittleO atImInfty f (1 : ℍ → ℂ) := by
-    apply isLittleO_of_tendsto; simp;
-    simpa using bd
-  rw [IsLittleO] at *; exact fun c hc => modform_bound_aux c 1 hc.le (this hc)
-
-theorem modform_periodic (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (w : ℂ) :
-    (extendByZero f) (w + 1) = (extendByZero f) w := by
-  by_cases hw : 0 < im w
-  · rw [extendByZero_eq_of_mem f w hw]
-    have : 0 < im (w + 1) := by rw [add_im, one_im, add_zero]; exact hw
-    rw [extendByZero_eq_of_mem f _ this]
-    have t := SlashInvariantForm.vAdd_width_periodic 1 k 1 f.1 ⟨w, hw⟩
-    convert t
-    simp
-    rw [UpperHalfPlane.ext_iff, UpperHalfPlane.coe_vadd]
-    simp
-    apply add_comm
-  · have : extendByZero f w = 0 := by
-      rw [extendByZero];
-      split_ifs with h
-      exfalso;
-      swap
-      rfl
-      exact  hw h
-    rw [this]
-    have : extendByZero f (w + 1) = 0 := by
-      rw [extendByZero]
-      split_ifs with h
-      exfalso
-      have : 0 < im (w + 1) := by tauto
-      rw [add_im, one_im, add_zero] at this
-      exact hw this
-      rfl
-    exact this
-
-theorem modform_hol (f : ModularForm ⊤ k) (z : ℂ) (hz : 0 < im z) :
-    DifferentiableAt ℂ (extendByZero f) z := by
-  have hf_hol := EisensteinSeries.mdiff_to_holo (EisensteinSeries.holExtn f) f.holo'
-  rw [← isHolomorphicOn_iff_differentiableOn] at hf_hol
-  simp at hf_hol
-  exact (hf_hol z hz).differentiableAt ((isOpen_iff_mem_nhds.mp upper_half_plane_isOpen) z hz)
-
-theorem modform_hol_infty (f : ModularForm ⊤ k) :
-    ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ (extendByZero f) z := by
-  refine' eventually_of_mem (_ : UpperHalfPlane.upperHalfSpace ∈ atIInf') _
-  · rw [atIInf'_mem]; use 0; tauto
-  · intro x hx; exact modform_hol f x hx
-
-end ModformEquivs
-
-section Modforms
-
-def unitDiscSset :=
-  {z : ℂ | Complex.abs z< 1}
-
-theorem unit_disc_isOpen : IsOpen unitDiscSset :=
-  isOpen_Iio.preimage Complex.continuous_abs
-
-local notation "𝔻" =>  (TopologicalSpace.Opens.mk unitDiscSset unit_disc_isOpen)
-
-variable (f : ℍ → ℂ) (k : ℤ)
-
---lemma q_in_D (z : ℍ) : abs (Q 1 z) < 1 := by { convert (abs_q_lt_iff 1 0 z).mpr z.2, simp }
-theorem z_in_H (q : 𝔻) (hq : (q : ℂ) ≠ 0) :
-    0 < im (Z 1 q) := by
-  rw [im_z_eq 1 q]
-  apply mul_pos_of_neg_of_neg
-  · exact div_neg_of_neg_of_pos (neg_lt_zero.mpr zero_lt_one) Real.two_pi_pos
-  rw [Real.log_neg_iff]; exact q.2
-  apply AbsoluteValue.pos; exact hq
-
-def cuspFcnH : ℂ → ℂ :=
-  cuspFcn 1 <| extendByZero f
-
-theorem eq_cuspFcnH (z : ℍ) (f : ModularForm ⊤ k) :
-    f z = (cuspFcnH f) (Q 1 z) := by
-  have t := eq_cuspFcn 1 (extendByZero f) (modform_periodic f) z
-  rw [cuspFcnH]; convert t
-  rw [extendByZero_eq_of_mem f _ _]; · simp;
-  · cases z; tauto
-
-theorem cusp_fcn_diff (f : ModularForm ⊤ k) (q : 𝔻) :
-    DifferentiableAt ℂ (cuspFcnH f) q := by
-  by_cases hq : (q : ℂ) = 0
-  · rw [hq];
-    exact
-      F_diff_at_zero 1 (extendByZero f) (modform_periodic f) (modform_bounded f)
-        (modform_hol_infty f)
-  · have t :=
-      cuspFcn_diff_at 1 (extendByZero f) (modform_periodic f) _ (modform_hol f _ <| z_in_H q hq)
-    rw [QZ_eq_id 1 q hq] at t ; rw [cuspFcnH]; exact t
-
-/-
-def cuspFormToModForm (f : CuspForm ⊤ k) : ModularForm ⊤ k
-    where
-  toFun := f.toFun
-  slash_action_eq' := f.slash_action_eq'
-  holo' := f.holo'
-  bdd_at_infty' := by
-    intro A;
-    simp
-    have := (f.zero_at_infty' A).BoundedAtFilter; convert this
-
-  instance : Coe (CuspForm ⊤ k) (ModularForm ⊤ k) :=
--/
-
-
-
-theorem cusp_fcn_vanish (f : CuspForm ⊤ k) : cuspFcnH f 0 = 0 := by
-  have :=cuspFcn_zero_of_zero_at_inf 1 (extendByZero f) ?_
-  apply this
-  apply cuspform_vanish_infty
-
-
-theorem exp_decay_of_cuspform (f : CuspForm ⊤ k) :
-    IsBigO UpperHalfPlane.atImInfty f fun z : ℍ => Real.exp (-2 * π * im z) := by
-  have := exp_decay_of_zero_at_inf 1 (extendByZero f) (modform_periodic (f : ModularForm ⊤ k))
-    (cuspform_vanish_infty f) (modform_hol_infty (f : ModularForm ⊤ k))
-  simp at *
-  have h2 := this.isBigOWith
-  obtain ⟨C, hC⟩ := h2
-  rw [IsBigO]; use C
-  rw [isBigOWith_iff, eventually_iff] at hC ⊢
-  rw [atIInf'_mem] at hC ; rw [UpperHalfPlane.atImInfty_mem]
-  obtain ⟨A, hC⟩ := hC; use A + 1; intro z hz; specialize hC z
-  have h : A < im z := by
-    simp at *
-    rw [UpperHalfPlane.im] at hz
-    norm_cast at *
-    simp at *
-    linarith;
-  simp at hC
-  rw [extendByZero_eq_of_mem] at hC ;
-  swap; exact z.2
-  have : ((1 : ℝPos) : ℝ) = (1 : ℝ) := by rfl
-  simp  [Subtype.coe_eta, div_one] at hC ;
-  have HC := hC h
-  simp
-  exact HC
-
-end Modforms
-
-section Petersson
-
-open scoped ModularForm
-
--- Bound on abs(f z) for large values of z
-theorem pet_bounded_large {k : ℤ} (f : CuspForm ⊤ k) :
-    ∃ A C : ℝ, ∀ z : ℍ, A ≤ im z → (petSelf f k) z ≤ C := by
-  -- first get bound for large values of im z
-  have h1 := exp_decay_of_cuspform _ f
-  have : IsBigO UpperHalfPlane.atImInfty (fun z : ℍ => Real.exp (-2 * π * z.im))
-      fun z : ℍ => 1 / z.im ^ ((k : ℝ) / 2) := by
-    apply IsLittleO.isBigO;
-    apply isLittleO_of_tendsto
-    · intro x hx; exfalso
-      contrapose! hx; apply one_div_ne_zero
-      refine' (Real.rpow_pos_of_pos x.2 _).ne'
-    rw [UpperHalfPlane.atImInfty]
-    let F := fun y : ℝ => Real.exp (-2 * π * y) / (1 / y ^ ((k : ℝ) / 2))
-    apply (@tendsto_comap'_iff _ _ _ F _ _ _ _).mpr
-    · have := tendsto_rpow_mul_exp_neg_mul_atTop_nhds_0 ((k : ℝ) / 2) (2 * π) Real.two_pi_pos
-      refine' Tendsto.congr' _ this; apply eventually_of_mem (Ioi_mem_atTop (0 : ℝ))
-      intro y _;  simp; apply mul_comm;
-    · convert Ioi_mem_atTop (0 : ℝ); ext1 x; rw [Set.mem_range]
-      constructor; · rintro ⟨y, hy⟩; rw [← hy]; exact y.2
-      · intro h;
-        use ⟨x * I, ?_⟩
-        swap
-        · rw [mul_I_im]; exact h
-        · rw [UpperHalfPlane.im]
-          simp  [Subtype.coe_mk, mul_im, ofReal_re, I_im, mul_one, I_re, MulZeroClass.mul_zero,
-            add_zero]
-  obtain ⟨C1, h1'⟩ := (h1.trans this).bound
-  rw [eventually_iff, UpperHalfPlane.atImInfty_mem] at h1' ; cases' h1' with A h1'
-  dsimp at h1' ; refine' ⟨A, C1 ^ 2, _⟩
-  intro z hz; specialize h1' z hz; rw [petSelf]
-  have : im z ^ k = (im z ^ ((k : ℝ) / 2)) ^ 2 := by
-    norm_cast
-    rw [← Real.rpow_int_cast, ← Real.rpow_nat_cast, ← Real.rpow_mul]
-    swap; exact z.2.le; congr 1; norm_cast
-    rw [Rat.divInt_eq_div]
-    field_simp
-  rw [← UpperHalfPlane.coe_im, this, ← mul_pow]
-  rw [sq_le_sq]
-  have e : 0 < z.im ^ ((k : ℝ) / 2) := by apply Real.rpow_pos_of_pos; exact z.2
-  have : abs (f z) * im z ^ ((k : ℝ) / 2) ≤ C1 := by
-    rw [div_eq_inv_mul, mul_one, _root_.abs_inv, mul_comm] at h1'
-    simp at *
-    have h2 : 0 ≤ (z.1).im ^ ((k : ℝ) / 2) := by
-      norm_cast
-      apply Real.rpow_nonneg
-      exact z.2.le
-    have h1'' := mul_le_mul_of_nonneg_right h1' h2
-    refine' le_trans h1'' _
-    · rw [_root_.abs_of_nonneg]
-      swap;
-      · norm_cast at *
-      conv =>
-        lhs
-        congr
-        rw [mul_comm];
-      rw [mul_assoc]
-      suffices th : (z.im ^ ((k : ℝ) / 2))⁻¹ * z.im ^ ((k : ℝ) / 2) = 1 by
-        simp_rw [← UpperHalfPlane.coe_im] at *
-        erw [th]; -- TODO why erw
-        simp
-      apply inv_mul_cancel; exact e.ne'
-  apply abs_le_abs;
-  norm_cast at *
-  have aux : -(Complex.abs (f z) * (z.1).im ^ ((k : ℝ) / 2)) ≤ Complex.abs (f z) * z.1.im ^ ((k : ℝ) / 2) := by
-    simp
-    apply mul_nonneg; apply AbsoluteValue.nonneg; exact e.le
-  norm_cast at *
-  apply le_trans aux this
-
-
-end Petersson
