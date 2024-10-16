@@ -1,5 +1,5 @@
 import Mathlib.Analysis.Complex.AbsMax
-import Mathlib.Analysis.Complex.UpperHalfPlane.Basic
+import Mathlib.NumberTheory.Modular
 import Mathlib.NumberTheory.ModularForms.Basic
 
 /-!
@@ -49,3 +49,41 @@ We want to apply the above lemma to `cusp_function h f`, where `f` is a modular 
 If we choose `r = exp (-π * √3)`, then the image of the fundamental domain is contained in
 `{z | ‖z‖ ≤ r}`.
 -/
+
+open UpperHalfPlane Modular
+local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
+
+/-- non-strict variant of `ModularGroup.three_le_four_mul_im_sq_of_mem_fdo` -/
+theorem ModularGroup.three_le_four_mul_im_sq_of_mem_fd {τ : ℍ} (h : τ ∈ 𝒟) : 3 ≤ 4 * τ.im ^ 2 := by
+  have : 1 ≤ τ.re * τ.re + τ.im * τ.im := by simpa [Complex.normSq_apply] using h.1
+  have := h.2
+  cases abs_cases τ.re <;> nlinarith
+
+lemma exists_translate (τ : ℍ) :
+    ∃ γ : SL(2, ℤ), 1 / 2 ≤ im (γ • τ) := by
+  obtain ⟨γ, hγ⟩ := ModularGroup.exists_smul_mem_fd τ
+  use γ
+  have := ModularGroup.three_le_four_mul_im_sq_of_mem_fd hγ
+  have := UpperHalfPlane.im_pos (γ • τ)
+  nlinarith
+
+def j (γ : SL(2, ℤ)) (τ : ℍ) : ℂ := sorry -- automorphy factor, can't find the definition
+
+lemma exists_translate' (τ : ℍ) :
+    ∃ γ : SL(2, ℤ), 1 / 2 ≤ im (γ • τ) ∧ ‖j γ τ‖ ≤ 1 := by
+  -- If 1/2 ≤ im τ, take γ = id.
+  -- Otherwise, choose γ using `exists_translate`, and then note that im γτ ≥ im τ, from which
+  -- we deduce ‖j γ τ‖ ≤ 1 from im (γτ) = im τ / ‖j(γ, τ)‖ ^ 2.
+  sorry
+
+lemma modform_exists_norm_le : false := sorry
+  -- Statement: If `f` is a modular form of weight `k ≤ 0`, then for any τ ∈ ℍ,
+  -- ∃ ξ ∈ ℍ with 1/2 ≤ im ξ and ‖f τ‖ ≤ ‖f ξ‖.
+  -- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use slash invariance, & the
+  -- fact that ‖j γ τ‖ ≤ 1.
+
+-- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
+-- deduce that any level 1, wt ≤ 0 modular form is constant.
+-- Clearly a nonzero constant can't be modular of weight < 0 -- we should probably have a lemma
+-- that a function which is modular for the same group in two different levels is 0 --
+-- so we are done.
