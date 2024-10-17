@@ -8,7 +8,7 @@ import Mathlib.NumberTheory.ModularForms.Identities
 
 open ModularForm Complex Filter Asymptotics UpperHalfPlane
 
-open scoped Real Topology Manifold Filter ComplexConjugate SlashInvariantForm
+open scoped Real Topology Manifold
 
 noncomputable section
 
@@ -31,25 +31,19 @@ lemma eventuallyEq_coe_comp_ofComplex (z : ℂ) (hz : 0 < z.im) :
     ((Complex.continuous_im.isOpen_preimage _ isOpen_Ioi).mem_nhds hz) (fun x hx ↦ ?_)
   simp only [Function.comp_apply, ofComplex_apply' hx, id_eq, coe_mk_subtype]
 
+lemma im_pos_mem_atIInf' : {z | 0 < z.im} ∈ atIInf' := atIInf'_mem.mpr ⟨0, fun _ ↦ by tauto⟩
+
 lemma tendsto_atIInf'_ofComplex :
     Tendsto ofComplex atIInf' atImInfty := by
-  intro U hU
-  obtain ⟨A, hA⟩ := (atImInfty_mem _).mp hU
-  simp only [Filter.mem_map, atIInf'_mem, Set.mem_preimage]
-  refine ⟨max 0 A, fun z hz ↦ hA _ ?_⟩
-  simpa only [ofComplex_apply' <| (le_max_left _ _).trans_lt hz] using
-    (le_max_right _ _).trans hz.le
+  simp only [atIInf', atImInfty, tendsto_comap_iff, Function.comp_def]
+  refine tendsto_comap.congr' ?_
+  filter_upwards [im_pos_mem_atIInf'] with z hz
+  simp only [ofComplex_apply' hz, ← UpperHalfPlane.coe_im, coe_mk_subtype]
 
-lemma tendsto_val_atImInfty :
+lemma tendsto_coe_atImInfty :
     Tendsto UpperHalfPlane.coe atImInfty atIInf' := by
-  intro U hU
-  obtain ⟨A, hA⟩ := atIInf'_mem.mp hU
-  simp only [Filter.mem_map, atImInfty_mem, Set.mem_preimage]
-  refine ⟨A + 1, fun z hz ↦ hA _ ?_⟩
-  simp only [coe_im]
-  linarith
-
-lemma im_pos_mem_atIInf' : {z | 0 < z.im} ∈ atIInf' := atIInf'_mem.mpr ⟨0, fun _ ↦ by tauto⟩
+  simpa only [atImInfty, atIInf', tendsto_comap_iff, Function.comp_def,
+    funext UpperHalfPlane.coe_im] using tendsto_comap
 
 lemma mdifferentiableAt_ofComplex (z : ℂ) (hz : 0 < z.im) :
     MDifferentiableAt 𝓘(ℂ) 𝓘(ℂ) ofComplex z := by
@@ -69,7 +63,6 @@ lemma mdifferentiableAt_ofComplex (z : ℂ) (hz : 0 < z.im) :
 end UpperHalfPlane
 
 local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
-
 
 section ModformEquivs
 
@@ -100,7 +93,7 @@ theorem modform_periodic {F : Type*} [FunLike F ℍ ℂ]
       ofComplex_apply_of_im_nonpos (not_lt.mp this)]
 
 theorem modform_hol {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k]
-    (f : F) (z : ℂ) (hz : 0 < im z) :
+    (f : F) {z : ℂ} (hz : 0 < im z) :
     DifferentiableAt ℂ (f ∘ ofComplex) z := by
   rw [← mdifferentiableAt_iff_differentiableAt]
   exact (ModularFormClass.holo f _).comp z (mdifferentiableAt_ofComplex z hz)
@@ -108,7 +101,7 @@ theorem modform_hol {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [
 theorem modform_hol_infty
     {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] (f : F) :
     ∀ᶠ z : ℂ in atIInf', DifferentiableAt ℂ (f ∘ ofComplex) z :=
-  eventually_of_mem im_pos_mem_atIInf' (modform_hol f)
+  eventually_of_mem im_pos_mem_atIInf' (fun _ hz ↦ modform_hol f hz)
 
 end ModformEquivs
 
@@ -118,11 +111,9 @@ theorem z_in_H {q : ℂ} (hq : Complex.abs q < 1) (hq_ne : q ≠ 0) : 0 < im (Z 
   rw [im_z_eq 1 q]
   apply mul_pos_of_neg_of_neg
   · exact div_neg_of_neg_of_pos (neg_lt_zero.mpr zero_lt_one) Real.two_pi_pos
-  rw [Real.log_neg_iff]
-  · exact hq
-  · apply AbsoluteValue.pos
-    exact hq_ne
+  rwa [Real.log_neg_iff (Complex.abs.pos hq_ne)]
 
+/-- The analytic function `F` such that `f τ = F (exp (2 * π * I * τ))`. -/
 def cuspFcnH (f : ℍ → ℂ) : ℂ → ℂ := cuspFcn 1 (f ∘ ofComplex)
 
 variable {k : ℤ}
@@ -141,7 +132,7 @@ theorem cusp_fcn_diff {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] 
   · exact F_diff_at_zero zero_lt_one (modform_bounded_atIInf' f)
       (modform_hol_infty f) (modform_periodic f)
   · exact QZ_eq_id one_ne_zero q hq' ▸ (cuspFcn_diff_at _ one_ne_zero _
-      (modform_hol f _ <| z_in_H hq hq') (modform_periodic f))
+      (modform_hol f <| z_in_H hq hq') (modform_periodic f))
 
 theorem cusp_fcn_vanish {F : Type*} [FunLike F ℍ ℂ] [CuspFormClass F Γ k] (f : F) :
     cuspFcnH f 0 = 0 :=
@@ -152,7 +143,7 @@ theorem exp_decay_of_cuspform {F : Type*} [FunLike F ℍ ℂ] [CuspFormClass F �
   have := exp_decay_of_zero_at_inf zero_lt_one
     (cuspform_zero_atIInf' f) (modform_hol_infty f) (modform_periodic f)
   simp only [div_one] at this
-  convert this.comp_tendsto tendsto_val_atImInfty using 1
+  convert this.comp_tendsto tendsto_coe_atImInfty using 1
   ext τ
   simp only [Function.comp_apply, ofComplex_apply]
 
