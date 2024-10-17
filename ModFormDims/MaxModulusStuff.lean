@@ -183,57 +183,50 @@ lemma const_modform_neg_wt_eq_zero_lvl_one {F : Type*} [FunLike F ℍ ℂ] (k : 
 
 open Real
 
+lemma Q_image_bound (ξ : ℍ) (hξ : 1 / 2 ≤ ξ.im) : ‖Q 1 ξ‖ ≤ rexp (-(π * √3 * (1 / 2))) := by
+  simp only [Q, ofReal_one, div_one, Complex.norm_eq_abs, Complex.abs_exp]
+  apply Real.exp_le_exp_of_le
+  simp only [mul_re, re_ofNat, ofReal_re, im_ofNat, ofReal_im, mul_zero, sub_zero,
+    Complex.I_re, mul_im, zero_mul, add_zero, Complex.I_im, mul_one, sub_self, coe_re,
+    coe_im, zero_sub, neg_le]
+  ring_nf
+  simp_rw [mul_assoc]
+  apply mul_le_mul_of_nonneg_left _ pi_nonneg
+  have : 1 ≤ ξ.im * 2 := by
+    rwa [div_le_iff₀ zero_lt_two] at hξ
+  apply le_trans _ this
+  have : √3 ≤ 2 := sqrt_le_iff.mpr (by norm_cast)
+  linarith
+
 lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
     [ModularFormClass F Γ k] (f : F) : ⇑f = 0 ∨ (k = 0 ∧ ∃ c : ℂ, ⇑f = fun _ => c) := by
   have hdiff : DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
     exact fun z hz ↦ DifferentiableAt.differentiableWithinAt (cusp_fcn_diff f hz)
   have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
-    apply eq_const_of_exists_le (r := exp (-(π * √3)/2)) hdiff
+    apply eq_const_of_exists_le (r := exp (-(π * √3 * (1 / 2)))) hdiff
     · exact exp_nonneg _
-    · refine exp_lt_one_iff.mpr ?hr_lt.a
-      rw [@div_neg_iff]
-      right
-      simp only [Left.neg_neg_iff, pi_pos, mul_pos_iff_of_pos_left, sqrt_pos, Nat.ofNat_pos,
-        and_self]
+    · simp only [one_div, exp_lt_one_iff, Left.neg_neg_iff, pi_pos, mul_pos_iff_of_pos_left,
+      sqrt_pos, Nat.ofNat_pos, inv_pos]
     · intro z hz
       rcases eq_or_ne z 0 with rfl | hz'
       · refine ⟨0, by simpa using exp_nonneg _, by rfl⟩
-      · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
+      · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk f ⟨(Z 1 z), z_in_H hz hz'⟩
         use Q 1 ξ
-        constructor
-        · rw [Q]
-          simp only [ofReal_one, div_one, Complex.norm_eq_abs, Complex.abs_exp]
-          gcongr
-          simp only [mul_re, re_ofNat, ofReal_re, im_ofNat, ofReal_im, mul_zero, sub_zero,
-            Complex.I_re, mul_im, zero_mul, add_zero, Complex.I_im, mul_one, sub_self, coe_re,
-            coe_im, zero_sub, neg_le]
-          ring_nf
-          simp_rw [mul_assoc]
-          apply mul_le_mul_of_nonneg_left _ pi_nonneg
-          have : 1 ≤ ξ.im * 2 := by
-            rw [div_le_iff₀ zero_lt_two] at hξ
-            exact hξ
-          apply le_trans _ this
-          have : √3 ≤ 2 := by
-            apply sqrt_le_iff.mpr ?_
-            norm_cast
-          linarith
-        · rw [eq_cuspFcnH f ξ, eq_cuspFcnH f ⟨(Z 1 z), by apply z_in_H hz hz'⟩] at hξ₂
-          convert hξ₂
-          exact (QZ_eq_id one_ne_zero z hz').symm
+        refine ⟨Q_image_bound ξ hξ, ?_⟩
+        rw [eq_cuspFcnH f ξ, eq_cuspFcnH f ⟨(Z 1 z), z_in_H hz hz'⟩] at hξ₂
+        convert hξ₂
+        exact (QZ_eq_id one_ne_zero z hz').symm
   have H : ⇑f = Function.const ℍ ((cuspFcnH f) 0) := by
     ext z
-    have e1 := eq_cuspFcnH f z
     have hQ : Q 1 z ∈ {z | ‖z‖ < 1} := by
-      simpa using (abs_q_lt_iff zero_lt_one 0 z.1).mpr z.2
-    simpa only [SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, e1,
+      simpa only [Complex.norm_eq_abs, Set.mem_setOf_eq, neg_mul, mul_zero, div_one,
+        Real.exp_zero] using (abs_q_lt_iff zero_lt_one 0 z.1).mpr z.2
+    simpa only [SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, eq_cuspFcnH f z,
       Function.const_apply] using heq hQ
   have HF := const_modform_neg_wt_eq_zero_lvl_one k f (cuspFcnH f 0) H
   rcases HF with HF | HF
   · right
-    simp [HF]
-    use (cuspFcnH (⇑f) 0)
-    simpa using H
+    refine ⟨HF, (cuspFcnH (⇑f) 0), by simpa using H⟩
   · left
     ext z
     have := congrFun H z
