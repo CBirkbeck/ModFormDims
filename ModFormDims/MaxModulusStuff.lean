@@ -90,17 +90,19 @@ lemma exists_translate' (τ : ℍ) :
     have H : ‖denom γ τ‖^2 ≤ 1 := (mul_le_iff_le_one_right τ.2).mp h1
     simpa using H
 
-def coe1 : SL(2, ℤ) → Γ :=
-  fun g => ⟨↑g, by simp [Γ, CongruenceSubgroup.Gamma_one_top]⟩
+local notation  "Γ(" n ")"  => CongruenceSubgroup.Gamma n
 
-instance : Coe SL(2, ℤ) Γ := ⟨coe1⟩
+def coe1 : SL(2, ℤ) → Γ(1) :=
+  fun g => ⟨↑g, by simp [CongruenceSubgroup.Gamma_one_top]⟩
+
+instance : Coe SL(2, ℤ) Γ(1) := ⟨coe1⟩
 
 @[simp]
-lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ = (g • τ) := by
+lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ(1)) • τ = (g • τ) := by
   simp only [coe1, Subgroup.mk_smul, ModularGroup.sl_moeb]
 
 @[simp]
-lemma denom_coe1_eq_denom {g : SL(2, ℤ)} {τ : ℍ} : denom (g : Γ) τ = denom g τ := by
+lemma denom_coe1_eq_denom {g : SL(2, ℤ)} {τ : ℍ} : denom (g : Γ(1)) τ = denom g τ := by
   simp only [denom, coe1, Fin.isValue, ModularGroup.coe'_apply_complex]
 
 theorem slash_action_eqn'' {F : Type*} [FunLike F ℍ ℂ] (k : ℤ) (Γ : Subgroup SL(2, ℤ))
@@ -110,7 +112,7 @@ theorem slash_action_eqn'' {F : Type*} [FunLike F ℍ ℂ] (k : ℤ) (Γ : Subgr
   exact (SlashInvariantForm.slash_action_eqn' k Γ f γ z)
 
 lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
-    [ModularFormClass F Γ k] (f : F)  (τ : ℍ) :
+    [ModularFormClass F Γ(1) k] (f : F) (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
     /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
   `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
@@ -118,7 +120,7 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) {F : Type*} [FunLike F ℍ
   obtain ⟨γ, hγ, hdenom⟩ := exists_translate' τ
   use γ • τ
   refine ⟨hγ, ?_⟩
-  have := slash_action_eqn'' k Γ f γ τ
+  have := slash_action_eqn'' k Γ(1) f γ τ
   rw [coe_smul_eq_smul, denom_coe1_eq_denom] at this
   rw [this,norm_mul, norm_zpow]
   have h2 : 0 ≤ ‖f τ‖ := norm_nonneg (f τ)
@@ -140,7 +142,7 @@ lemma aux2  : (ModularGroup.coe' 1)  = 1 := by
   simp only [map_one] -/
 
 lemma slash_eq_func_prod (f : ℍ → ℂ) (k : ℤ) (H : Subgroup SL(2, ℤ)) (γ : H) : f ∣[k] γ =
-    (fun z => f (γ • z)) * (fun z => (denom γ z)^k)⁻¹ := by
+    (fun z => f (γ • z)) * (fun z => (denom γ z) ^ k)⁻¹ := by
   ext z
   simp [slash_def, slash]
 
@@ -154,15 +156,14 @@ lemma denom_S (z : ℍ) : denom (ModularGroup.S) z = z.1 := by
   rfl
 
 lemma Complex.zpow_two_eq_one (k : ℤ) (h : (2 : ℂ) ^ k = 1) : k = 0 := by
-  replace h : ‖(2 : ℂ)^k‖ = 1 := by simp [h]
-  replace h : ‖(2 : ℝ)^k‖ = 1 := by simp [← h]
-  replace h : (2 : ℝ)^k = (2 : ℝ)^(0 : ℤ) := by simp [← h]
+  replace h : ‖(2 : ℂ) ^ k‖ = 1 := by simp [h]
+  replace h : ‖(2 : ℝ) ^ k‖ = 1 := by simp [← h]
+  replace h : (2 : ℝ) ^ k = (2 : ℝ) ^ (0 : ℤ) := by simp [← h]
   exact zpow_right_injective₀ (by norm_num) (by norm_num) h
 
-
 lemma const_modform_neg_wt_eq_zero_lvl_one {F : Type*} [FunLike F ℍ ℂ] (k : ℤ)
-    [ModularFormClass F Γ k] (f : F) (c : ℂ) (hf : ⇑f = (fun _ => c)) : k = 0 ∨ c = 0 := by
-  have := slash_action_eqn'' k Γ f
+    [SlashInvariantFormClass F Γ(1) k] (f : F) (c : ℂ) (hf : ⇑f = (fun _ => c)) : k = 0 ∨ c = 0 := by
+  have := slash_action_eqn'' k Γ(1) f
   rw [hf] at this
   have hI := (this ModularGroup.S) I
   have h2I2 := (this ModularGroup.S) ⟨2 * Complex.I, by simp⟩
@@ -170,7 +171,7 @@ lemma const_modform_neg_wt_eq_zero_lvl_one {F : Type*} [FunLike F ℍ ℂ] (k : 
     Subtype.forall, Gamma_mem, Fin.isValue, and_imp, denom_coe1_eq_denom, denom_S, Pi.mul_apply,
     Pi.inv_apply] at *
   nth_rw 1 [ hI] at h2I2
-  simp  [mul_eq_mul_left_iff, inv_inj] at h2I2
+  simp only [mul_eq_mul_right_iff] at h2I2
   rcases h2I2 with H | H
   · left
     symm at H
@@ -199,7 +200,7 @@ lemma Q_image_bound (ξ : ℍ) (hξ : 1 / 2 ≤ ξ.im) : ‖Q 1 ξ‖ ≤ rexp (
   linarith
 
 lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
-    [ModularFormClass F Γ k] (f : F) : ⇑f = 0 ∨ (k = 0 ∧ ∃ c : ℂ, ⇑f = fun _ => c) := by
+    [ModularFormClass F Γ(1) k] (f : F) : ⇑f = 0 ∨ (k = 0 ∧ ∃ c : ℂ, ⇑f = fun _ => c) := by
   have hdiff : DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
     exact fun z hz ↦ DifferentiableAt.differentiableWithinAt (cusp_fcn_diff f hz)
   have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
@@ -228,29 +229,26 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ �
   · right
     refine ⟨HF, (cuspFcnH (⇑f) 0), by simpa using H⟩
   · left
-    ext z
-    have := congrFun H z
-    rw [HF] at this
-    simpa only [zero_apply, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe,
-      Function.const_apply] using this
+    rw [HF] at H
+    simpa using H
 
 
 lemma ModularForm_neg_weigth_eq_zero (k : ℤ) (hk : k < 0) {F : Type*} [FunLike F ℍ ℂ]
-    [ModularFormClass F Γ k] (f : F) : ⇑f = 0 := by
+    [ModularFormClass F Γ(1) k] (f : F) : ⇑f = 0 := by
   rcases neg_wt_modform_zero k hk.le f with h | ⟨rfl, _, _⟩
   exact h
   aesop
 
 lemma ModularForm_weight_zero_constant {F : Type*} [FunLike F ℍ ℂ]
-    [ModularFormClass F Γ 0] (f : F) : ∃ c : ℂ, ⇑f = fun _ => c := by
+    [ModularFormClass F Γ(1) 0] (f : F) : ∃ c : ℂ, ⇑f = fun _ => c := by
   rcases neg_wt_modform_zero 0 (by rfl) f with h1 | h2
   refine ⟨0, ?_⟩
   simp only [h1, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, coe_zero]
   rfl
   aesop
 
-lemma weigth_zero_rank_eq_one : Module.rank ℂ (ModularForm Γ 0) = 1 := by
-  let f := ModularForm.const 1 (Γ := Γ)
+lemma weigth_zero_rank_eq_one : Module.rank ℂ (ModularForm Γ(1) 0) = 1 := by
+  let f := ModularForm.const 1 (Γ := Γ(1))
   have hf : f ≠ 0 := by
     rw [@DFunLike.ne_iff]
     use I
@@ -268,7 +266,7 @@ lemma weigth_zero_rank_eq_one : Module.rank ℂ (ModularForm Γ 0) = 1 := by
   simp [this]
   exact Eq.symm (congrFun hc' z)
 
-lemma neg_weight_rank_zero (k : ℤ) (hk : k < 0) : Module.rank ℂ (ModularForm Γ k) = 0 := by
+lemma neg_weight_rank_zero (k : ℤ) (hk : k < 0) : Module.rank ℂ (ModularForm Γ(1) k) = 0 := by
   rw [rank_eq_zero_iff]
   intro f
   refine ⟨1, by simp, ?_⟩
