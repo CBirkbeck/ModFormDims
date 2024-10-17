@@ -96,7 +96,7 @@ def coe1 : SL(2, ℤ) → Γ :=
 instance : Coe SL(2, ℤ) Γ := ⟨coe1⟩
 
 @[simp]
-lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ =  (g • τ)  := by
+lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ = (g • τ) := by
   simp only [coe1, Subgroup.mk_smul, ModularGroup.sl_moeb]
 
 @[simp]
@@ -122,7 +122,7 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) {F : Type*} [FunLike F ℍ
   rw [coe_smul_eq_smul, denom_coe1_eq_denom] at this
   rw [this,norm_mul, norm_zpow]
   have h2 : 0 ≤ ‖f τ‖ := norm_nonneg (f τ)
-  have h3 : 1 ≤  ‖denom (γ : SL(2, ℤ)) τ‖ ^ k := by
+  have h3 : 1 ≤ ‖denom (γ : SL(2, ℤ)) τ‖ ^ k := by
     apply one_le_zpow_of_nonpos₀ _ hdenom hk
     rw [norm_pos_iff]
     apply denom_ne_zero
@@ -161,7 +161,7 @@ lemma Complex.zpow_two_eq_one (k : ℤ) (h : (2 : ℂ) ^ k = 1) : k = 0 := by
 
 
 lemma const_modform_neg_wt_eq_zero_lvl_one {F : Type*} [FunLike F ℍ ℂ] (k : ℤ)
-    [ModularFormClass F Γ k]  (f : F) (c : ℂ) (hf : ⇑f = (fun _ => c)) : k = 0 ∨ c = 0 := by
+    [ModularFormClass F Γ k] (f : F) (c : ℂ) (hf : ⇑f = (fun _ => c)) : k = 0 ∨ c = 0 := by
   have := slash_action_eqn'' k Γ f
   rw [hf] at this
   have hI := (this ModularGroup.S) I
@@ -185,7 +185,7 @@ open Real
 
 lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
     [ModularFormClass F Γ k] (f : F) : ⇑f = 0 ∨ (k = 0 ∧ ∃ c : ℂ, ⇑f = fun _ => c) := by
-  have hdiff :  DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
+  have hdiff : DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
     exact fun z hz ↦ DifferentiableAt.differentiableWithinAt (cusp_fcn_diff f hz)
   have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
     apply eq_const_of_exists_le (r := exp (-(π * √3)/2)) hdiff
@@ -206,7 +206,7 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ �
           gcongr
           simp only [mul_re, re_ofNat, ofReal_re, im_ofNat, ofReal_im, mul_zero, sub_zero,
             Complex.I_re, mul_im, zero_mul, add_zero, Complex.I_im, mul_one, sub_self, coe_re,
-            coe_im, zero_sub, @neg_le]
+            coe_im, zero_sub, neg_le]
           ring_nf
           simp_rw [mul_assoc]
           apply mul_le_mul_of_nonneg_left _ pi_nonneg
@@ -242,12 +242,14 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ �
       Function.const_apply] using this
 
 
-lemma ModularForm_neg_weigth_eq_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 := by
-  rcases neg_wt_modform_zero k hk.le f  with h | ⟨rfl, _, _⟩
-  exact ModularForm.ext_iff.mpr (congrFun h)
+lemma ModularForm_neg_weigth_eq_zero (k : ℤ) (hk : k < 0) {F : Type*} [FunLike F ℍ ℂ]
+    [ModularFormClass F Γ k] (f : F) : ⇑f = 0 := by
+  rcases neg_wt_modform_zero k hk.le f with h | ⟨rfl, _, _⟩
+  exact h
   aesop
 
-lemma ModularForm_weight_zero_constant (f : ModularForm Γ 0) : ∃ c : ℂ, f.toFun = fun _ => c := by
+lemma ModularForm_weight_zero_constant {F : Type*} [FunLike F ℍ ℂ]
+    [ModularFormClass F Γ 0] (f : F) : ∃ c : ℂ, ⇑f = fun _ => c := by
   rcases neg_wt_modform_zero 0 (by rfl) f with h1 | h2
   refine ⟨0, ?_⟩
   simp only [h1, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, coe_zero]
@@ -264,17 +266,22 @@ lemma weigth_zero_rank_eq_one : Module.rank ℂ (ModularForm Γ 0) = 1 := by
   apply rank_eq_one f hf
   intro g
   rw [@DFunLike.ne_iff] at hf
-  obtain ⟨c, hc⟩ := hf
   obtain ⟨c', hc'⟩ := ModularForm_weight_zero_constant g
-  use c' * (f c)⁻¹
+  use c'
   ext z
   simp only [zero_apply, ne_eq, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe,
     smul_apply, smul_eq_mul] at *
-  have : f c = f z := rfl
-  rw [← this]
-  field_simp
+  have : f z = 1 := rfl
+  simp [this]
   exact Eq.symm (congrFun hc' z)
 
+lemma neg_weight_rank_zero (k : ℤ) (hk : k < 0) : Module.rank ℂ (ModularForm Γ k) = 0 := by
+  rw [rank_eq_zero_iff]
+  intro f
+  refine ⟨1, by simp, ?_⟩
+  exact
+    Eq.mpr (id (congrArg (fun x ↦ x = 0) (one_smul ℂ f)))
+      (ModularForm.ext_iff.mpr (congrFun (ModularForm_neg_weigth_eq_zero k hk f)))
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
