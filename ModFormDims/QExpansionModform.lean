@@ -70,9 +70,6 @@ end UpperHalfPlane
 
 local notation "SL(" n ", " R ")" => Matrix.SpecialLinearGroup (Fin n) R
 
-instance (k : ℤ) (Γ : Subgroup SL(2, ℤ)) : ModularFormClass (CuspForm Γ k) Γ k where
-  holo f := f.holo'
-  bdd_at_infty f A := (f.zero_at_infty' A).boundedAtFilter
 
 section ModformEquivs
 
@@ -84,10 +81,10 @@ theorem modform_bounded_atIInf'
   simpa only [SlashAction.slash_one, ModularForm.toSlashInvariantForm_coe]
     using IsBigO.comp_tendsto (ModularFormClass.bdd_at_infty f 1) tendsto_atIInf'_ofComplex
 
-theorem cuspform_zero_atIInf' {Γ : Subgroup SL(2, ℤ)} (f : CuspForm Γ k) :
-    ZeroAtFilter atIInf' (f ∘ ofComplex) := by
+theorem cuspform_zero_atIInf' {Γ : Subgroup SL(2, ℤ)} {F : Type*} [FunLike F ℍ ℂ]
+    [CuspFormClass F Γ k] (f : F) : ZeroAtFilter atIInf' (f ∘ ofComplex) := by
   simpa only [SlashAction.slash_one, CuspForm.toSlashInvariantForm_coe]
-    using (f.zero_at_infty' 1).comp tendsto_atIInf'_ofComplex
+    using (CuspFormClass.zero_at_infty f 1).comp tendsto_atIInf'_ofComplex
 
 theorem modform_periodic {F : Type*} [FunLike F ℍ ℂ]
     [ModularFormClass F (CongruenceSubgroup.Gamma 1) k] (f : F) (w : ℂ) :
@@ -130,12 +127,14 @@ def cuspFcnH (f : ℍ → ℂ) : ℂ → ℂ := cuspFcn 1 (f ∘ ofComplex)
 
 variable {k : ℤ}
 
-theorem eq_cuspFcnH (f : ModularForm (CongruenceSubgroup.Gamma 1) k) (z : ℍ) :
+abbrev Γ := CongruenceSubgroup.Gamma 1
+
+theorem eq_cuspFcnH {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] (f : F) (z : ℍ) :
     f z = cuspFcnH f (Q 1 z) := by
   convert eq_cuspFcn one_ne_zero (modform_periodic f) z
   simp only [Function.comp_apply, ofComplex_apply]
 
-theorem cusp_fcn_diff (f : ModularForm (CongruenceSubgroup.Gamma 1) k)
+theorem cusp_fcn_diff {F : Type*} [FunLike F ℍ ℂ] [ModularFormClass F Γ k] (f : F)
     {q : ℂ} (hq : Complex.abs q < 1) :
     DifferentiableAt ℂ (cuspFcnH f) q := by
   rcases eq_or_ne q 0 with rfl | hq'
@@ -144,10 +143,11 @@ theorem cusp_fcn_diff (f : ModularForm (CongruenceSubgroup.Gamma 1) k)
   · exact QZ_eq_id one_ne_zero q hq' ▸ (cuspFcn_diff_at _ one_ne_zero _
       (modform_hol f _ <| z_in_H hq hq') (modform_periodic f))
 
-theorem cusp_fcn_vanish (f : CuspForm (CongruenceSubgroup.Gamma 1) k) : cuspFcnH f 0 = 0 :=
+theorem cusp_fcn_vanish {F : Type*} [FunLike F ℍ ℂ] [CuspFormClass F Γ k] (f : F) :
+    cuspFcnH f 0 = 0 :=
   cuspFcn_zero_of_zero_at_inf zero_lt_one (cuspform_zero_atIInf' f)
 
-theorem exp_decay_of_cuspform (f : CuspForm (CongruenceSubgroup.Gamma 1) k) :
+theorem exp_decay_of_cuspform {F : Type*} [FunLike F ℍ ℂ] [CuspFormClass F Γ k] (f : F) :
     IsBigO atImInfty f fun z : ℍ ↦ Real.exp (-2 * π * z.im) := by
   have := exp_decay_of_zero_at_inf zero_lt_one
     (cuspform_zero_atIInf' f) (modform_hol_infty f) (modform_periodic f)

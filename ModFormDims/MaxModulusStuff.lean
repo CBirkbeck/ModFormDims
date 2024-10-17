@@ -69,8 +69,6 @@ lemma exists_translate (τ : ℍ) :
   have := UpperHalfPlane.im_pos (γ • τ)
   nlinarith
 
-abbrev Γ := CongruenceSubgroup.Gamma 1
-
 lemma denom_one (τ : ℍ) : denom 1 τ = 1 := by
   simp only [denom, OneMemClass.coe_one, Fin.isValue, Units.val_one, ne_eq, one_ne_zero,
     not_false_eq_true, Matrix.one_apply_ne, ofReal_zero, zero_mul, Matrix.one_apply_eq, ofReal_one,
@@ -111,7 +109,8 @@ theorem slash_action_eqn'' {F : Type*} [FunLike F ℍ ℂ] (k : ℤ) (Γ : Subgr
   rw [denom]
   exact (SlashInvariantForm.slash_action_eqn' k Γ f γ z)
 
-lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ : ℍ) :
+lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
+    [ModularFormClass F Γ k] (f : F)  (τ : ℍ) :
     ∃ ξ : ℍ, 1/2 ≤ ξ.im ∧ ‖f τ‖ ≤ ‖f ξ‖ := by
     /- Proof: take ξ = γ • τ where γ is as in `exists_translate'`. Then use the equation
   `f ξ = (denom γ τ) ^ k * f τ` and the fact that `k ≤ 0` and `‖denom γ τ‖ ≤ 1`.
@@ -160,21 +159,21 @@ lemma Complex.zpow_two_eq_one (k : ℤ) (h : (2 : ℂ) ^ k = 1) : k = 0 := by
   replace h : (2 : ℝ)^k = (2 : ℝ)^(0 : ℤ) := by simp [← h]
   exact zpow_right_injective₀ (by norm_num) (by norm_num) h
 
-lemma const_modform_neg_wt_eq_zero_lvl_one (k : ℤ) (f : ModularForm Γ k) (c : ℂ)
-    (hf : f.toFun = (fun _ => c)) : k = 0 ∨ c = 0 := by
-  have := f.slash_action_eq'
+
+lemma const_modform_neg_wt_eq_zero_lvl_one {F : Type*} [FunLike F ℍ ℂ] (k : ℤ)
+    [ModularFormClass F Γ k]  (f : F) (c : ℂ) (hf : ⇑f = (fun _ => c)) : k = 0 ∨ c = 0 := by
+  have := slash_action_eqn'' k Γ f
   rw [hf] at this
-  have h2 := congrFun (this ModularGroup.S)
-  rw [slash_eq_func_prod] at h2
-  have h2I := h2 I
-  have h2I2 := h2 ⟨2 * Complex.I, by simp⟩
+  have hI := (this ModularGroup.S) I
+  have h2I2 := (this ModularGroup.S) ⟨2 * Complex.I, by simp⟩
   simp only [SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, subgroup_slash,
     Subtype.forall, Gamma_mem, Fin.isValue, and_imp, denom_coe1_eq_denom, denom_S, Pi.mul_apply,
     Pi.inv_apply] at *
-  nth_rw 2 [← h2I] at h2I2
-  simp only [mul_eq_mul_left_iff, inv_inj] at h2I2
+  nth_rw 1 [ hI] at h2I2
+  simp  [mul_eq_mul_left_iff, inv_inj] at h2I2
   rcases h2I2 with H | H
   · left
+    symm at H
     rw [UpperHalfPlane.I, mul_zpow, mul_left_eq_self₀] at H
     rcases H with H | H
     · apply Complex.zpow_two_eq_one k H
@@ -184,7 +183,8 @@ lemma const_modform_neg_wt_eq_zero_lvl_one (k : ℤ) (f : ModularForm Γ k) (c :
 
 open Real
 
-lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 := by
+lemma neg_wt_modform_zero (k : ℤ) (hk : k ≤ 0) {F : Type*} [FunLike F ℍ ℂ]
+    [ModularFormClass F Γ k] (f : F) : ⇑f = 0 ∨ (k = 0 ∧ ∃ c : ℂ, ⇑f = fun _ => c) := by
   have hdiff :  DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
     exact fun z hz ↦ DifferentiableAt.differentiableWithinAt (cusp_fcn_diff f hz)
   have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
@@ -198,7 +198,7 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 
     · intro z hz
       rcases eq_or_ne z 0 with rfl | hz'
       · refine ⟨0, by simpa using exp_nonneg _, by rfl⟩
-      · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk.le f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
+      · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
         use Q 1 ξ
         constructor
         · rw [Q]
@@ -221,7 +221,7 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 
         · rw [eq_cuspFcnH f ξ, eq_cuspFcnH f ⟨(Z 1 z), by apply z_in_H hz hz'⟩] at hξ₂
           convert hξ₂
           exact (QZ_eq_id one_ne_zero z hz').symm
-  have H : f.toFun = Function.const ℍ ((cuspFcnH f) 0) := by
+  have H : ⇑f = Function.const ℍ ((cuspFcnH f) 0) := by
     ext z
     have e1 := eq_cuspFcnH f z
     have hQ : Q 1 z ∈ {z | ‖z‖ < 1} := by
@@ -230,13 +230,30 @@ lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 
       Function.const_apply] using heq hQ
   have HF := const_modform_neg_wt_eq_zero_lvl_one k f (cuspFcnH f 0) H
   rcases HF with HF | HF
-  · exfalso
-    aesop
-  · ext z
+  · right
+    simp [HF]
+    use (cuspFcnH (⇑f) 0)
+    simpa using H
+  · left
+    ext z
     have := congrFun H z
     rw [HF] at this
     simpa only [zero_apply, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe,
       Function.const_apply] using this
+
+
+lemma ModularForm_neg_weigth_eq_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 := by
+  rcases neg_wt_modform_zero k hk.le f  with h | ⟨rfl, _, _⟩
+  exact ModularForm.ext_iff.mpr (congrFun h)
+  aesop
+
+lemma ModularForm_weight_zero_constant (f : ModularForm Γ 0) : ∃ c : ℂ, f.toFun = fun _ => c := by
+  rcases neg_wt_modform_zero 0 (by rfl) f with h1 | h2
+  refine ⟨0, ?_⟩
+  simp only [h1, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, coe_zero]
+  rfl
+  aesop
+
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
