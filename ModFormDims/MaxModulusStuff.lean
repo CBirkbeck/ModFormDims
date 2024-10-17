@@ -2,6 +2,7 @@ import Mathlib.Analysis.Complex.AbsMax
 import Mathlib.NumberTheory.Modular
 import Mathlib.NumberTheory.ModularForms.Basic
 import Mathlib.NumberTheory.ModularForms.CongruenceSubgroups
+import ModFormDims.QExpansionModform
 
 /-!
 # Maximum-modulus criteria for functions to be constant
@@ -182,7 +183,73 @@ lemma const_modform_neg_wt_eq_zero_lvl_one (k : ℤ) (f : ModularForm Γ k) (c :
     exact (zpow_ne_zero k I_ne_zero) H
   · exact Or.inr H
 
+open Real
 
+lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 := by
+  have hdiff :  DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
+    intro z hz
+    have := cusp_fcn_diff f hz
+    exact DifferentiableAt.differentiableWithinAt this
+  have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
+    apply eq_const_of_exists_le (r := exp (-(π * √3)/2)) hdiff
+
+    · exact exp_nonneg _
+    · refine exp_lt_one_iff.mpr ?hr_lt.a
+      rw [@div_neg_iff]
+      right
+      simp [pi_pos]
+    · intro z hz
+      rcases eq_or_ne z 0 with rfl | hz'
+      · use 0
+        simp only [norm_zero, zero_le_one, Function.const_apply]
+        refine ⟨exp_nonneg _, ?_⟩
+        rfl
+      · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk.le f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
+        use Q 1 ξ
+        constructor
+        · rw [Q]
+          simp
+          rw [Complex.abs_exp]
+          gcongr
+          simp
+          rw [@neg_le]
+          ring_nf
+          simp_rw [mul_assoc]
+          apply mul_le_mul_of_nonneg_left
+          have : 1 ≤ ξ.im * 2 := by
+            rw [div_le_iff₀ ] at hξ
+            exact hξ
+            exact zero_lt_two
+          apply le_trans _ this
+          have : √3 ≤ 2 := by
+            apply sqrt_le_iff.mpr ?_
+            norm_cast
+          linarith
+          exact pi_nonneg
+        · have e1 := eq_cuspFcnH f ξ
+          have e2 := eq_cuspFcnH f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
+          have e3 := QZ_eq_id one_ne_zero z hz'
+          rw [e1, e2] at hξ₂
+          convert hξ₂
+          exact e3.symm
+  have H : f.toFun = Function.const ℍ ((cuspFcnH f) 0) := by
+    ext z
+    have e1 := eq_cuspFcnH f z
+    have hQ : Q 1 z ∈ {z | ‖z‖ < 1} := by
+      have := (abs_q_lt_iff zero_lt_one 0 z.1).mpr z.2
+      simpa using this
+    have HE := heq hQ
+    simp
+    rw [e1]
+    simpa using HE
+  have HF := const_modform_neg_wt_eq_zero_lvl_one k f (cuspFcnH f 0) H
+  rcases HF with HF | HF
+  exfalso
+  aesop
+  ext z
+  have := congrFun H z
+  rw [HF] at this
+  simpa using this
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
