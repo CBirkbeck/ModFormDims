@@ -254,6 +254,27 @@ lemma ModularForm_weight_zero_constant (f : ModularForm Γ 0) : ∃ c : ℂ, f.t
   rfl
   aesop
 
+lemma weigth_zero_rank_eq_one : Module.rank ℂ (ModularForm Γ 0) = 1 := by
+  let f := ModularForm.const 1 (Γ := Γ)
+  have hf : f ≠ 0 := by
+    rw [@DFunLike.ne_iff]
+    use I
+    simp only [const_toFun, Function.const_apply, zero_apply, ne_eq, one_ne_zero, not_false_eq_true,
+      f]
+  apply rank_eq_one f hf
+  intro g
+  rw [@DFunLike.ne_iff] at hf
+  obtain ⟨c, hc⟩ := hf
+  obtain ⟨c', hc'⟩ := ModularForm_weight_zero_constant g
+  use c' * (f c)⁻¹
+  ext z
+  simp only [zero_apply, ne_eq, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe,
+    smul_apply, smul_eq_mul] at *
+  have : f c = f z := rfl
+  rw [← this]
+  field_simp
+  exact Eq.symm (congrFun hc' z)
+
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
