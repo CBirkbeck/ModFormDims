@@ -98,8 +98,7 @@ instance : Coe SL(2, ℤ) Γ := ⟨coe1⟩
 
 @[simp]
 lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ =  (g • τ)  := by
-  rw [coe1]
-  simp
+  simp only [coe1, Subgroup.mk_smul, ModularGroup.sl_moeb]
 
 @[simp]
 lemma denom_coe1_eq_denom {g : SL(2, ℤ)} {τ : ℍ} : denom (g : Γ) τ = denom g τ := by
@@ -129,9 +128,64 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ
     rw [norm_pos_iff]
     apply denom_ne_zero
   nlinarith
+open ModularForm CongruenceSubgroup
+
+local notation "GL(" n ", " R ")" "⁺" => Matrix.GLPos (Fin n) R
+
+lemma aux (A B : SL(2, ℤ)) : (ModularGroup.coe' A) * B = ModularGroup.coe' (A * B) := by
+  simp_rw [ModularGroup.coe']
+  simp only [map_mul]
+
+lemma aux2  : (ModularGroup.coe' 1)  = 1 := by
+  simp_rw [ModularGroup.coe']
+  simp only [map_one]
+
+
+
+lemma slash_eq_func_prod (f : ℍ → ℂ) (k : ℤ) (H : Subgroup SL(2, ℤ)) (γ : H) : f ∣[k] γ =
+    (fun z => f (γ • z)) * (fun z => (denom γ z)^k)⁻¹ := by
+  ext z
+  simp [slash_def, slash]
+
+@[simp]
+lemma denom_S (z : ℍ) : denom (ModularGroup.S) z = z.1 := by
+  rw [ModularGroup.S, denom]
+  simp
+  rfl
+
+lemma Complex.zpow_two_eq_one (k : ℤ) (h : (2 : ℂ) ^ k = 1) : k = 0 := by
+  replace h : ‖(2 : ℂ)^k‖ = 1 := by simp [h]
+  replace h : ‖(2 : ℝ)^k‖ = 1 := by simp [← h]
+  replace h : (2 : ℝ)^k = (2 : ℝ)^(0 : ℤ) := by simp [← h]
+  exact zpow_right_injective₀ (by norm_num) (by norm_num) h
+
+lemma const_modform_neg_wt_eq_zero_lvl_one (k : ℤ) (f : ModularForm Γ k) (c : ℂ)
+    (hf : f.toFun = (fun _ => c)) : k = 0 ∨ c = 0 := by
+  have := f.slash_action_eq'
+  rw [hf] at this
+  have h2 := congrFun (this ModularGroup.S)
+  rw [slash_eq_func_prod] at h2
+  have h2I := h2 I
+  have h2I2 := h2 ⟨2 * Complex.I, by simp⟩
+  simp only [SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, subgroup_slash,
+    Subtype.forall, Gamma_mem, Fin.isValue, and_imp, denom_coe1_eq_denom, denom_S, Pi.mul_apply,
+    Pi.inv_apply] at *
+  nth_rw 2 [← h2I] at h2I2
+  simp only [mul_eq_mul_left_iff, inv_inj] at h2I2
+  rcases h2I2 with H | H
+  · left
+    rw [UpperHalfPlane.I, mul_zpow] at H
+    rw [@mul_left_eq_self₀] at H
+    rcases H with H | H
+    apply Complex.zpow_two_eq_one k H
+    exfalso
+    exact (zpow_ne_zero k I_ne_zero) H
+  · exact Or.inr H
+
+
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
 -- Clearly a nonzero constant can't be modular of weight < 0 -- we should probably have a lemma
--- that a function which is modular for the same group in two different levels is 0 --
+-- that a function which is modular for the same group in two different weights is 0 --
 -- so we are done.
