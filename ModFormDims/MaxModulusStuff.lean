@@ -105,10 +105,9 @@ lemma coe_smul_eq_smul {g : SL(2, ℤ)} {τ : ℍ} : (g : Γ) • τ =  (g • �
 lemma denom_coe1_eq_denom {g : SL(2, ℤ)} {τ : ℍ} : denom (g : Γ) τ = denom g τ := by
   simp only [denom, coe1, Fin.isValue, ModularGroup.coe'_apply_complex]
 
-variable {F : Type*} [FunLike F ℍ ℂ]
-
-theorem slash_action_eqn'' (k : ℤ) (Γ : Subgroup SL(2, ℤ)) [SlashInvariantFormClass F Γ k] (f : F)
-    (γ : Γ) (z : ℍ) : f (γ • z) = (denom γ z) ^ k * f z := by
+theorem slash_action_eqn'' {F : Type*} [FunLike F ℍ ℂ] (k : ℤ) (Γ : Subgroup SL(2, ℤ))
+    [SlashInvariantFormClass F Γ k] (f : F) (γ : Γ) (z : ℍ) :
+    f (γ • z) = (denom γ z) ^ k * f z := by
   rw [denom]
   exact (SlashInvariantForm.slash_action_eqn' k Γ f γ z)
 
@@ -131,7 +130,7 @@ lemma modform_exists_norm_le {k : ℤ} (hk : k ≤ 0) (f : ModularForm Γ k) (τ
   nlinarith
 open ModularForm CongruenceSubgroup
 
-local notation "GL(" n ", " R ")" "⁺" => Matrix.GLPos (Fin n) R
+/- local notation "GL(" n ", " R ")" "⁺" => Matrix.GLPos (Fin n) R
 
 lemma aux (A B : SL(2, ℤ)) : (ModularGroup.coe' A) * B = ModularGroup.coe' (A * B) := by
   simp_rw [ModularGroup.coe']
@@ -139,9 +138,7 @@ lemma aux (A B : SL(2, ℤ)) : (ModularGroup.coe' A) * B = ModularGroup.coe' (A 
 
 lemma aux2  : (ModularGroup.coe' 1)  = 1 := by
   simp_rw [ModularGroup.coe']
-  simp only [map_one]
-
-
+  simp only [map_one] -/
 
 lemma slash_eq_func_prod (f : ℍ → ℂ) (k : ℤ) (H : Subgroup SL(2, ℤ)) (γ : H) : f ∣[k] γ =
     (fun z => f (γ • z)) * (fun z => (denom γ z)^k)⁻¹ := by
@@ -151,7 +148,10 @@ lemma slash_eq_func_prod (f : ℍ → ℂ) (k : ℤ) (H : Subgroup SL(2, ℤ)) (
 @[simp]
 lemma denom_S (z : ℍ) : denom (ModularGroup.S) z = z.1 := by
   rw [ModularGroup.S, denom]
-  simp
+  simp only [Int.reduceNeg, Fin.isValue, ModularGroup.coe'_apply_complex, Matrix.of_apply,
+    Matrix.cons_val', Matrix.cons_val_zero, Matrix.empty_val', Matrix.cons_val_fin_one,
+    Matrix.cons_val_one, Matrix.head_fin_const, Int.cast_one, one_mul, Matrix.head_cons,
+    Int.cast_zero, add_zero]
   rfl
 
 lemma Complex.zpow_two_eq_one (k : ℤ) (h : (2 : ℂ) ^ k = 1) : k = 0 := by
@@ -175,81 +175,68 @@ lemma const_modform_neg_wt_eq_zero_lvl_one (k : ℤ) (f : ModularForm Γ k) (c :
   simp only [mul_eq_mul_left_iff, inv_inj] at h2I2
   rcases h2I2 with H | H
   · left
-    rw [UpperHalfPlane.I, mul_zpow] at H
-    rw [@mul_left_eq_self₀] at H
+    rw [UpperHalfPlane.I, mul_zpow, mul_left_eq_self₀] at H
     rcases H with H | H
-    apply Complex.zpow_two_eq_one k H
-    exfalso
-    exact (zpow_ne_zero k I_ne_zero) H
+    · apply Complex.zpow_two_eq_one k H
+    · exfalso
+      exact (zpow_ne_zero k I_ne_zero) H
   · exact Or.inr H
 
 open Real
 
 lemma neg_wt_modform_zero (k : ℤ) (hk : k < 0) (f : ModularForm Γ k) : f = 0 := by
   have hdiff :  DifferentiableOn ℂ (cuspFcnH f) {z : ℂ | ‖z‖ < 1} := by
-    intro z hz
-    have := cusp_fcn_diff f hz
-    exact DifferentiableAt.differentiableWithinAt this
+    exact fun z hz ↦ DifferentiableAt.differentiableWithinAt (cusp_fcn_diff f hz)
   have heq : Set.EqOn (cuspFcnH f) (Function.const ℂ ((cuspFcnH f) 0)) {z : ℂ | ‖z‖ < 1} := by
     apply eq_const_of_exists_le (r := exp (-(π * √3)/2)) hdiff
-
     · exact exp_nonneg _
     · refine exp_lt_one_iff.mpr ?hr_lt.a
       rw [@div_neg_iff]
       right
-      simp [pi_pos]
+      simp only [Left.neg_neg_iff, pi_pos, mul_pos_iff_of_pos_left, sqrt_pos, Nat.ofNat_pos,
+        and_self]
     · intro z hz
       rcases eq_or_ne z 0 with rfl | hz'
-      · use 0
-        simp only [norm_zero, zero_le_one, Function.const_apply]
-        refine ⟨exp_nonneg _, ?_⟩
-        rfl
+      · refine ⟨0, by simpa using exp_nonneg _, by rfl⟩
       · obtain ⟨ξ, hξ, hξ₂⟩ := modform_exists_norm_le hk.le f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
         use Q 1 ξ
         constructor
         · rw [Q]
-          simp
-          rw [Complex.abs_exp]
+          simp only [ofReal_one, div_one, Complex.norm_eq_abs, Complex.abs_exp]
           gcongr
-          simp
-          rw [@neg_le]
+          simp only [mul_re, re_ofNat, ofReal_re, im_ofNat, ofReal_im, mul_zero, sub_zero,
+            Complex.I_re, mul_im, zero_mul, add_zero, Complex.I_im, mul_one, sub_self, coe_re,
+            coe_im, zero_sub, @neg_le]
           ring_nf
           simp_rw [mul_assoc]
-          apply mul_le_mul_of_nonneg_left
+          apply mul_le_mul_of_nonneg_left _ pi_nonneg
           have : 1 ≤ ξ.im * 2 := by
-            rw [div_le_iff₀ ] at hξ
+            rw [div_le_iff₀ zero_lt_two] at hξ
             exact hξ
-            exact zero_lt_two
           apply le_trans _ this
           have : √3 ≤ 2 := by
             apply sqrt_le_iff.mpr ?_
             norm_cast
           linarith
-          exact pi_nonneg
-        · have e1 := eq_cuspFcnH f ξ
-          have e2 := eq_cuspFcnH f ⟨(Z 1 z), by apply z_in_H hz hz'⟩
-          have e3 := QZ_eq_id one_ne_zero z hz'
-          rw [e1, e2] at hξ₂
+        · rw [eq_cuspFcnH f ξ, eq_cuspFcnH f ⟨(Z 1 z), by apply z_in_H hz hz'⟩] at hξ₂
           convert hξ₂
-          exact e3.symm
+          exact (QZ_eq_id one_ne_zero z hz').symm
   have H : f.toFun = Function.const ℍ ((cuspFcnH f) 0) := by
     ext z
     have e1 := eq_cuspFcnH f z
     have hQ : Q 1 z ∈ {z | ‖z‖ < 1} := by
-      have := (abs_q_lt_iff zero_lt_one 0 z.1).mpr z.2
-      simpa using this
-    have HE := heq hQ
-    simp
-    rw [e1]
-    simpa using HE
+      simpa using (abs_q_lt_iff zero_lt_one 0 z.1).mpr z.2
+    simpa only [SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe, e1,
+      Function.const_apply] using heq hQ
   have HF := const_modform_neg_wt_eq_zero_lvl_one k f (cuspFcnH f 0) H
   rcases HF with HF | HF
-  exfalso
-  aesop
-  ext z
-  have := congrFun H z
-  rw [HF] at this
-  simpa using this
+  · exfalso
+    aesop
+  · ext z
+    have := congrFun H z
+    rw [HF] at this
+    simpa only [zero_apply, SlashInvariantForm.toFun_eq_coe, toSlashInvariantForm_coe,
+      Function.const_apply] using this
 
 -- Now, if we can get the `cusp function` stuff from QExpansion.lean working properly, we can
 -- deduce that any level 1, wt ≤ 0 modular form is constant.
